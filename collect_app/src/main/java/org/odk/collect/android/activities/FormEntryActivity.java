@@ -335,6 +335,8 @@ public class FormEntryActivity extends CollectAbstractActivity implements Animat
         });
     }
 
+
+
     private void setupFields(Bundle savedInstanceState) {
         if (savedInstanceState != null) {
             state = savedInstanceState;
@@ -1030,10 +1032,14 @@ public class FormEntryActivity extends CollectAbstractActivity implements Animat
     public boolean onCreateOptionsMenu(Menu menu) {
         Collect.getInstance().getActivityLogger()
                 .logInstanceAction(this, "onCreateOptionsMenu", "show");
-        if(Collect.bundleHearTest==null)
+        if(Collect.bundleHearTest==null) {
             getMenuInflater().inflate(R.menu.form_menu, menu);
-        else
+            Log.d(TAG, "bundleHearTest==null");
+        }
+        else {
             getMenuInflater().inflate(R.menu.form_menu_mhealth, menu);
+            Log.d(TAG, "bundleHearTest!=null");
+        }
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -2395,6 +2401,7 @@ public class FormEntryActivity extends CollectAbstractActivity implements Animat
     protected void onResume() {
         super.onResume();
         Log.d(TAG, "onResume");
+        invalidateOptionsMenu();
         if (!checkIfStoragePermissionsGranted(this)) {
             onResumeWasCalledWithoutPermissions = true;
             return;

@@ -22,6 +22,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.ContentObserver;
 import android.database.Cursor;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -49,6 +50,7 @@ import com.hearxgroup.mhealthintegration.Models.HeartestTest;
 import com.hearxgroup.mhealthintegration.Models.Patient;
 import com.hearxgroup.mhealthintegration.Models.PeekAcuityTest;
 import com.hearxgroup.mhealthintegration.TestRequestHelper;
+import com.hearxgroup.mhealthintegration.TestRetrievers.MHealthContentRetriever;
 
 import org.odk.collect.android.R;
 import org.odk.collect.android.application.Collect;
@@ -75,7 +77,10 @@ import java.io.ObjectInputStream;
 import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 
+import io.reactivex.Single;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import timber.log.Timber;
 
 /**
@@ -110,6 +115,7 @@ public class MainMenuActivity extends CollectAbstractActivity implements MHealth
     private Cursor viewSentCursor;
     private final IncomingHandler handler = new IncomingHandler(this);
     private final MyContentObserver contentObserver = new MyContentObserver();
+    private String mHealthGeneratedTestId;
 
     // private static boolean DO_NOT_EXIT = false;
 
@@ -122,8 +128,14 @@ public class MainMenuActivity extends CollectAbstractActivity implements MHealth
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(TAG, "onCreate");
         setContentView(R.layout.main_menu);
         initToolbar();
+
+        Log.d(TAG, getDeviceAndroidVersion());
+        Log.d(TAG, getDeviceKernelVersion());
+        Log.d(TAG, getDeviceModelNumber());
+        Log.d(TAG, getDeviceBuildNumber());
 
         // enter data button. expects a result.
         Button enterDataButton = findViewById(R.id.enter_data);
@@ -345,21 +357,34 @@ public class MainMenuActivity extends CollectAbstractActivity implements MHealth
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        Log.d(TAG, "onNewIntent");
+
         Collect.bundleHearTest = null;
         if(TestRequestHelper.getGeneratedTestIdFromIntent(intent)!=null) { //RETURN FROM AN MHEALTH TEST REQUEST OCCURRED
-            String mHealthGeneratedTestId = TestRequestHelper.getGeneratedTestIdFromIntent(intent);
-            TestRequestHelper.retrieveTestResult(
-                    MainMenuActivity.this,
-                    getLoaderManager(),
-                    MainMenuActivity.this,
-                    TestRequestHelper.getTestTypeFromIntent(intent),
-                    mHealthGeneratedTestId);
+            Log.d(TAG, "TestRequestHelper.getGeneratedTestIdFromIntent(intent)!=null");
+            mHealthGeneratedTestId = TestRequestHelper.getGeneratedTestIdFromIntent(intent);
+            Intent testIntent = intent;
+            Single.timer(500, TimeUnit.MILLISECONDS)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(timeup -> {
+                        TestRequestHelper.retrieveTestResult(
+                                MainMenuActivity.this,
+                                getLoaderManager(),
+                                MainMenuActivity.this,
+                                TestRequestHelper.getTestTypeFromIntent(testIntent),
+                                mHealthGeneratedTestId);
+                    });
+            Log.d(TAG, "mHealthGeneratedTestId: "+mHealthGeneratedTestId);
         }
+        else
+            Log.d(TAG, "TestRequestHelper.getGeneratedTestIdFromIntent(intent)==null");
+        setIntent(null);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        Log.d(TAG, "onResume");
         SharedPreferences sharedPreferences = this.getSharedPreferences(
                 AdminPreferencesActivity.ADMIN_PREFERENCES, 0);
 
@@ -733,33 +758,54 @@ public class MainMenuActivity extends CollectAbstractActivity implements MHealth
 
     @Override
     public void onRetrieveTestHearScreen(HearscreenTest hearscreenTest) {
-
+        Log.d(TAG, "onRetrieveTestHearScreen");
     }
 
     @Override
     public void onRetrieveTestHearTest(HeartestTest heartestTest) {
-        Log.d(TAG, "ODK REQUEST RETURN");
+        Log.d(TAG, "onRetrieveTestHearTest");
         Collect.bundleHearTest = MHealthUtil.getODKReturnBundle(heartestTest);
+        Collect.getInstance().getActivityLogger()
+                .logAction(this, "fillBlankForm", "click");
+        Intent i = new Intent(getApplicationContext(),
+                FormChooserList.class);
+        startActivity(i);
     }
 
     @Override
     public void onRetrieveTestPeekAcuity(PeekAcuityTest peekAcuityTest) {
-
+        Log.d(TAG, "onRetrieveTestPeekAcuity");
     }
 
     @Override
     public void onRetrievePatient(Patient patient) {
-
+        Log.d(TAG, "onRetrievePatient");
     }
 
     @Override
     public void onRetrieveFacility(Facility facility) {
-
+        Log.d(TAG, "onRetrieveFacility");
     }
 
     @Override
     public void onRetrieveContentError(String s) {
-
+        Log.d(TAG, "onRetrieveContentError: "+s);
     }
 
+
+    public static String getDeviceAndroidVersion() {
+        return  Build.VERSION.RELEASE;
+    }
+
+    public static String getDeviceKernelVersion() {
+        return  System.getProperty("os.version");
+    }
+
+    public static String getDeviceModelNumber() {
+        return  Build.MODEL;
+    }
+
+    public static String getDeviceBuildNumber() {
+        return  Build.FINGERPRINT;
+    }
 }
