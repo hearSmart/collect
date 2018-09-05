@@ -104,7 +104,10 @@ public class Collect extends Application implements HasActivityInjector {
     private static long lastClickTime;
 
     public static Bundle bundleHearTest;
-    public static String participantId="";
+
+    public static String clusterNumber="";
+    public static String houseNumber="";
+    public static String rosterNumber="";
     public static String participantName="";
 
     @Inject

@@ -37,10 +37,10 @@ public class MHealthUtil {
     public static void processAnswersForMHealthData(ArrayList<QuestionWidget> questionWidgets, HashMap<FormIndex, IAnswerData> answers) {
         ///// START HEARX CUSTOM - RETRIEVE RELEVANT DATA FROM FORM /////
         //1. OBTAIN ANSWER INDEX
-        int nameIndex = 0;
-        int clusterIndex = 0;
-        int houseIndex = 0;
-        int rosterIndex = 0;
+        int nameIndex = -1;
+        int clusterIndex = -1;
+        int houseIndex = -1;
+        int rosterIndex = -1;
         for(int k=0; k<questionWidgets.size(); k++) {
             IFormElement formElement = questionWidgets.get(k).getFormEntryPrompt().getFormElement();
             if (formElement instanceof QuestionDef) {
@@ -74,32 +74,47 @@ public class MHealthUtil {
         }
 
         //2. TRAVERSE ANSWERS AT SPECIFIED INDEXES
-
-        if(clusterIndex>0 && houseIndex>0 && rosterIndex>0) {
-
-            int clusterId = 0;
-            int houseId = 0;
-            int rosterId = 0;
-
+        //CLUSTER NUMBER
+        if(clusterIndex>-1) {
+            int index = 0;
+            for (Map.Entry<FormIndex, IAnswerData> a : answers.entrySet()) {
+                if (index == clusterIndex && a.getValue() != null) {
+                    Log.d(TAG, "index: "+index);
+                    Collect.clusterNumber = (String) a.getValue().getValue();
+                }
+                index+=1;
+            }
+            Log.d("clusterNumber", Collect.clusterNumber+"");
+        }
+        //HOUSE NUMBER
+        if(houseIndex>-1) {
+            int index = 0;
+            for (Map.Entry<FormIndex, IAnswerData> a : answers.entrySet()) {
+                if (index == houseIndex && a.getValue() != null)
+                    Collect.houseNumber = (String) a.getValue().getValue();
+                index+=1;
+            }
+            Log.d("houseNumber", Collect.houseNumber+"");
+        }
+        //ROSTER NUMBER
+        if(rosterIndex>-1) {
+            int index = 0;
+            for (Map.Entry<FormIndex, IAnswerData> a : answers.entrySet()) {
+                if (index == rosterIndex && a.getValue() != null)
+                    Collect.rosterNumber = (String) a.getValue().getValue();
+                index+=1;
+            }
+            Log.d("rosterNumber", Collect.rosterNumber+"");
+        }
+        //NAME
+        if(nameIndex>-1) {
             int index = 0;
             for (Map.Entry<FormIndex, IAnswerData> a : answers.entrySet()) {
                 if (index == nameIndex && a.getValue() != null)
                     Collect.participantName = (String) a.getValue().getValue();
-                else if (index == clusterIndex && a.getValue() != null)
-                    clusterId = (Integer) a.getValue().getValue();
-                else if (index == houseIndex && a.getValue() != null)
-                    houseId = (Integer) a.getValue().getValue();
-                else if (index == rosterIndex && a.getValue() != null)
-                    rosterId = (Integer) a.getValue().getValue();
-                if (a.getValue() != null)
-                    Log.d(TAG, "Index " + index + " = " + a.getValue().getValue());
                 index+=1;
             }
-
-            Collect.participantId = clusterId + "-" + houseId + "-" + rosterId;
-
             Log.d("participantName", Collect.participantName);
-            Log.d("participantId", Collect.participantId);
         }
         ///// END HEARX CUSTOM
     }
