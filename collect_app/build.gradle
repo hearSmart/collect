@@ -71,8 +71,8 @@ android {
         applicationId('org.odk.collect.android')
         minSdkVersion(19)
         targetSdkVersion(22)
-        versionCode 20003
-        versionName "20003-MHEALTH"
+        versionCode 20004
+        versionName "20004-MHEALTH"
         testInstrumentationRunner('android.support.test.runner.AndroidJUnitRunner')
         multiDexEnabled true
         vectorDrawables.useSupportLibrary = true

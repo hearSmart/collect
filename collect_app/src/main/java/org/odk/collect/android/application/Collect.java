@@ -108,7 +108,8 @@ public class Collect extends Application implements HasActivityInjector {
     public static String clusterNumber="";
     public static String houseNumber="";
     public static String rosterNumber="";
-    public static String participantName="";
+    //public static String participantName="";
+    public static String participantInitials="";
 
     @Inject
     protected CookieStore cookieStore;

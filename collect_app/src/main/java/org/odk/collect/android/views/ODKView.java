@@ -145,12 +145,12 @@ public class ODKView extends ScrollView implements OnLongClickListener {
                             //START NEW MHEALTH//
                             if(intentName.equalsIgnoreCase("starthearingtest")) {
                                 //LAUNCH MHEALTH TEST
-                                if(Collect.participantName!=null && Collect.participantName.length()>0 && Collect.clusterNumber.length()>0 && Collect.houseNumber.length()>0 && Collect.rosterNumber.length()>0) {
+                                if(Collect.participantInitials!=null && Collect.participantInitials.length()>0 && Collect.clusterNumber.length()>0 && Collect.houseNumber.length()>0 && Collect.rosterNumber.length()>0) {
                                     MHealthUtil.requestMHTest(
                                             context,
                                             MHealthUtil.buildPatient(
                                                     Collect.clusterNumber + "-" + Collect.houseNumber + "-" + Collect.rosterNumber,
-                                                    Collect.participantName));
+                                                    Collect.participantInitials));
                                 }
                             }
                             //END NEW MHEALTH//

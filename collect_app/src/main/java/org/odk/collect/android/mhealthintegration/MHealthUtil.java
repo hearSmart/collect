@@ -37,7 +37,8 @@ public class MHealthUtil {
     public static void processAnswersForMHealthData(ArrayList<QuestionWidget> questionWidgets, HashMap<FormIndex, IAnswerData> answers) {
         ///// START HEARX CUSTOM - RETRIEVE RELEVANT DATA FROM FORM /////
         //1. OBTAIN ANSWER INDEX
-        int nameIndex = -1;
+        //int nameIndex = -1;
+        int initialsIndex = -1;
         int clusterIndex = -1;
         int houseIndex = -1;
         int rosterIndex = -1;
@@ -49,8 +50,10 @@ public class MHealthUtil {
                         (TreeReference) formElement.getBind().getReference();
 
                 if(reference!=null && reference.getNameLast()!=null) {
-                    if (reference.getNameLast().equalsIgnoreCase("name"))
-                        nameIndex = k;
+                    /*if (reference.getNameLast().equalsIgnoreCase("name"))
+                        nameIndex = k;*/
+                    if (reference.getNameLast().equalsIgnoreCase("initials"))
+                        initialsIndex = k;
                     if (reference.getNameLast().equalsIgnoreCase("cluster_no"))
                         clusterIndex = k;
                     if (reference.getNameLast().equalsIgnoreCase("house_no"))
@@ -61,7 +64,8 @@ public class MHealthUtil {
             }
         }
 
-        Log.d(TAG, "nameIndex "+nameIndex);
+        //Log.d(TAG, "nameIndex "+nameIndex);
+        Log.d(TAG, "initialsIndex "+initialsIndex);
         Log.d(TAG, "clusterIndex "+clusterIndex);
         Log.d(TAG, "houseIndex "+houseIndex);
         Log.d(TAG, "rosterIndex "+rosterIndex);
@@ -107,7 +111,7 @@ public class MHealthUtil {
             Log.d("rosterNumber", Collect.rosterNumber+"");
         }
         //NAME
-        if(nameIndex>-1) {
+        /*if(nameIndex>-1) {
             int index = 0;
             for (Map.Entry<FormIndex, IAnswerData> a : answers.entrySet()) {
                 if (index == nameIndex && a.getValue() != null)
@@ -115,16 +119,26 @@ public class MHealthUtil {
                 index+=1;
             }
             Log.d("participantName", Collect.participantName);
+        }*/
+        //INITIALS
+        if(initialsIndex>-1) {
+            int index = 0;
+            for (Map.Entry<FormIndex, IAnswerData> a : answers.entrySet()) {
+                if (index == initialsIndex && a.getValue() != null)
+                    Collect.participantInitials = (String) a.getValue().getValue();
+                index+=1;
+            }
+            Log.d("participantInitials", Collect.participantInitials);
         }
         ///// END HEARX CUSTOM
     }
 
-    public static @Nullable Patient buildPatient(String participantId, String participantName) {
+    public static @Nullable Patient buildPatient(String participantId, String participantInitials) {
         Log.d(TAG, "buildPatient");
         Log.d(TAG, "participantId: "+participantId);
         //BUILD ANONYMOUS PATIENT
         return Patient.build(
-                participantName,//firstName
+                participantInitials,//firstName
                 "Anonymous",//lastName
                 "1980-10-15",//YYYY-MM-dd
                 "male", //male/female
