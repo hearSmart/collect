@@ -1147,7 +1147,6 @@ public class FormEntryActivity extends CollectAbstractActivity implements Animat
      * etc...), true otherwise.
      */
     private boolean saveAnswersForCurrentScreen(boolean evaluateConstraints) {
-        Log.d(TAG, "saveAnswersForCurrentScreen");
         FormController formController = getFormController();
         // only try to save if the current event is a question or a field-list group
         // and current view is an ODKView (occasionally we show blank views that do not have any
@@ -1155,11 +1154,6 @@ public class FormEntryActivity extends CollectAbstractActivity implements Animat
         if (formController != null && formController.currentPromptIsQuestion()
                 && getCurrentViewIfODKView() != null) {
             try {
-                //START NEW MHEALTH//
-                MHealthUtil.processAnswersForMHealthData(
-                        odkView.getQuestionWidgets(),
-                        getCurrentViewIfODKView().getAnswers());
-                //END NEW MHEALTH//
                 FailedConstraint constraint = formController.saveAllScreenAnswers(
                         getCurrentViewIfODKView().getAnswers(),
                         evaluateConstraints);

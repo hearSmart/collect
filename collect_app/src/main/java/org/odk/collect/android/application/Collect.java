@@ -38,7 +38,7 @@ import com.google.android.gms.analytics.Tracker;
 import com.squareup.leakcanary.LeakCanary;
 import com.squareup.leakcanary.RefWatcher;
 
-import net.danlew.android.joda.JodaTimeAndroid;
+//import net.danlew.android.joda.JodaTimeAndroid;
 
 import org.odk.collect.android.BuildConfig;
 import org.odk.collect.android.R;
@@ -105,11 +105,7 @@ public class Collect extends Application implements HasActivityInjector {
 
     public static Bundle bundleHearTest;
 
-    public static String clusterNumber="";
-    public static String houseNumber="";
-    public static String rosterNumber="";
-    //public static String participantName="";
-    public static String participantInitials="";
+    public static String participantID="";
 
     @Inject
     protected CookieStore cookieStore;
@@ -287,7 +283,7 @@ public class Collect extends Application implements HasActivityInjector {
 
         PRNGFixes.apply();
         AppCompatDelegate.setCompatVectorFromResourcesEnabled(true);
-        JodaTimeAndroid.init(this);
+        //JodaTimeAndroid.init(this);
 
         defaultSysLanguage = Locale.getDefault().getLanguage();
         new LocaleHelper().updateLocale(this);

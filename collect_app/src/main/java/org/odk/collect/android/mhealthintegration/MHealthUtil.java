@@ -5,6 +5,9 @@ import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
+import com.google.gson.Gson;
+import com.hearxgroup.encryption.Logger;
+import com.hearxgroup.hearx.Constants;
 import com.hearxgroup.mhealthintegration.Models.HeartestTest;
 import com.hearxgroup.mhealthintegration.Models.MHealthTestRequest;
 import com.hearxgroup.mhealthintegration.Models.Patient;
@@ -34,111 +37,12 @@ public class MHealthUtil {
 
     private static final String TAG = MHealthUtil.class.getSimpleName();
 
-    public static void processAnswersForMHealthData(ArrayList<QuestionWidget> questionWidgets, HashMap<FormIndex, IAnswerData> answers) {
-        ///// START HEARX CUSTOM - RETRIEVE RELEVANT DATA FROM FORM /////
-        //1. OBTAIN ANSWER INDEX
-        //int nameIndex = -1;
-        int initialsIndex = -1;
-        int clusterIndex = -1;
-        int houseIndex = -1;
-        int rosterIndex = -1;
-        for(int k=0; k<questionWidgets.size(); k++) {
-            IFormElement formElement = questionWidgets.get(k).getFormEntryPrompt().getFormElement();
-            if (formElement instanceof QuestionDef) {
-
-                TreeReference reference =
-                        (TreeReference) formElement.getBind().getReference();
-
-                if(reference!=null && reference.getNameLast()!=null) {
-                    /*if (reference.getNameLast().equalsIgnoreCase("name"))
-                        nameIndex = k;*/
-                    if (reference.getNameLast().equalsIgnoreCase("initials"))
-                        initialsIndex = k;
-                    if (reference.getNameLast().equalsIgnoreCase("cluster_no"))
-                        clusterIndex = k;
-                    if (reference.getNameLast().equalsIgnoreCase("house_no"))
-                        houseIndex = k;
-                    if (reference.getNameLast().equalsIgnoreCase("roster_no"))
-                        rosterIndex = k;
-                }
-            }
-        }
-
-        //Log.d(TAG, "nameIndex "+nameIndex);
-        Log.d(TAG, "initialsIndex "+initialsIndex);
-        Log.d(TAG, "clusterIndex "+clusterIndex);
-        Log.d(TAG, "houseIndex "+houseIndex);
-        Log.d(TAG, "rosterIndex "+rosterIndex);
-
-        int k=0;
-        for (Map.Entry<FormIndex, IAnswerData> a: answers.entrySet()) {
-            if(a.getValue()!=null && a.getValue().getValue()!=null)
-                Log.d(TAG, "ans "+k+" = "+a.getValue().getValue());
-            k+=1;
-        }
-
-        //2. TRAVERSE ANSWERS AT SPECIFIED INDEXES
-        //CLUSTER NUMBER
-        if(clusterIndex>-1) {
-            int index = 0;
-            for (Map.Entry<FormIndex, IAnswerData> a : answers.entrySet()) {
-                if (index == clusterIndex && a.getValue() != null) {
-                    Log.d(TAG, "index: "+index);
-                    Collect.clusterNumber = (String) a.getValue().getValue();
-                }
-                index+=1;
-            }
-            Log.d("clusterNumber", Collect.clusterNumber+"");
-        }
-        //HOUSE NUMBER
-        if(houseIndex>-1) {
-            int index = 0;
-            for (Map.Entry<FormIndex, IAnswerData> a : answers.entrySet()) {
-                if (index == houseIndex && a.getValue() != null)
-                    Collect.houseNumber = (String) a.getValue().getValue();
-                index+=1;
-            }
-            Log.d("houseNumber", Collect.houseNumber+"");
-        }
-        //ROSTER NUMBER
-        if(rosterIndex>-1) {
-            int index = 0;
-            for (Map.Entry<FormIndex, IAnswerData> a : answers.entrySet()) {
-                if (index == rosterIndex && a.getValue() != null)
-                    Collect.rosterNumber = (String) a.getValue().getValue();
-                index+=1;
-            }
-            Log.d("rosterNumber", Collect.rosterNumber+"");
-        }
-        //NAME
-        /*if(nameIndex>-1) {
-            int index = 0;
-            for (Map.Entry<FormIndex, IAnswerData> a : answers.entrySet()) {
-                if (index == nameIndex && a.getValue() != null)
-                    Collect.participantName = (String) a.getValue().getValue();
-                index+=1;
-            }
-            Log.d("participantName", Collect.participantName);
-        }*/
-        //INITIALS
-        if(initialsIndex>-1) {
-            int index = 0;
-            for (Map.Entry<FormIndex, IAnswerData> a : answers.entrySet()) {
-                if (index == initialsIndex && a.getValue() != null)
-                    Collect.participantInitials = (String) a.getValue().getValue();
-                index+=1;
-            }
-            Log.d("participantInitials", Collect.participantInitials);
-        }
-        ///// END HEARX CUSTOM
-    }
-
-    public static @Nullable Patient buildPatient(String participantId, String participantInitials) {
+    public static @Nullable Patient buildPatient(String participantId) {
         Log.d(TAG, "buildPatient");
         Log.d(TAG, "participantId: "+participantId);
         //BUILD ANONYMOUS PATIENT
         return Patient.build(
-                participantInitials,//firstName
+                "Anonymous",//firstName
                 "Anonymous",//lastName
                 "1980-10-15",//YYYY-MM-dd
                 "male", //male/female
@@ -160,8 +64,6 @@ public class MHealthUtil {
         bundle.putInt("test_duration", htTest.getDuration());
         bundle.putInt("false_response", (htTest.getTotalFalseResponses()*100)/htTest.getTotalResponses());
         bundle.putString("note", htTest.getNotes());
-
-        Log.d(TAG, "frequencyResults length: "+htTest.getFrequencyResults());
 
         int condition1kL = 0;
         int norm1kL = 0;
@@ -245,7 +147,8 @@ public class MHealthUtil {
                 MHealthTestRequest.build(
                         testId, //UNIQUE TEST ID
                         "org.odk.collect.mhealthtest", //ACTION NAME AS DEFINED IN YOUR MANIFEST
-                        patient); //PATIENT OBJECT OR NULL
+                        patient,
+                        Constants.INDEX_HEARTEST); //PATIENT OBJECT OR NULL
         //UTILITY TO HELP YOU VALIDATE YOUR TEST REQUEST
         String requestValidationResponse = Util.validateTestRequest(context, testRequest);
         if(requestValidationResponse==null)

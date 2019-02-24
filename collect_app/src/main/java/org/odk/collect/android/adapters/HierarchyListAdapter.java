@@ -16,6 +16,7 @@
 
 package org.odk.collect.android.adapters;
 
+import android.app.Application;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -24,13 +25,20 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.google.gson.Gson;
+import com.hearxgroup.encryption.Logger;
+
 import org.odk.collect.android.R;
+import org.odk.collect.android.application.Collect;
 import org.odk.collect.android.logic.HierarchyElement;
+import org.odk.collect.android.mhealthintegration.MHealthUtil;
 import org.odk.collect.android.utilities.TextUtils;
 
 import java.util.List;
 
 public class HierarchyListAdapter extends RecyclerView.Adapter<HierarchyListAdapter.ViewHolder> {
+
+    private static final String TAG = HierarchyListAdapter.class.getSimpleName();
 
     private final OnElementClickListener listener;
 
@@ -49,6 +57,9 @@ public class HierarchyListAdapter extends RecyclerView.Adapter<HierarchyListAdap
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         holder.bind(hierarchyElements.get(position), listener);
+        if(hierarchyElements.get(position).getPrimaryText().contains("Participant ID"))
+            Collect.participantID = hierarchyElements.get(position).getSecondaryText();
+
         if (hierarchyElements.get(position).getIcon() != null) {
             holder.icon.setVisibility(View.VISIBLE);
             holder.icon.setImageDrawable(hierarchyElements.get(position).getIcon());

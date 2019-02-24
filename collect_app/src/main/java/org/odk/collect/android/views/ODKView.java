@@ -37,6 +37,8 @@ import android.widget.ScrollView;
 import android.widget.TableLayout;
 import android.widget.TextView;
 
+import com.google.gson.Gson;
+
 import org.javarosa.core.model.Constants;
 import org.javarosa.core.model.FormIndex;
 import org.javarosa.core.model.IFormElement;
@@ -142,15 +144,17 @@ public class ODKView extends ScrollView implements OnLongClickListener {
 
                             Intent i = new Intent(intentName);
 
+                            Log.d("ODKView", "intentName:"+intentName);
+
                             //START NEW MHEALTH//
-                            if(intentName.equalsIgnoreCase("starthearingtest")) {
+                            if(intentName.equalsIgnoreCase("starthearingtest") && Collect.participantID!=null && Collect.participantID.length()>0) {
+                                Log.d("ODKView", "starthearingtest");
                                 //LAUNCH MHEALTH TEST
-                                if(Collect.participantInitials!=null && Collect.participantInitials.length()>0 && Collect.clusterNumber.length()>0 && Collect.houseNumber.length()>0 && Collect.rosterNumber.length()>0) {
+                                Log.d("ODKView", "Collect.participantID:"+Collect.participantID);
+                                if(Collect.participantID.length()>0) {
                                     MHealthUtil.requestMHTest(
                                             context,
-                                            MHealthUtil.buildPatient(
-                                                    Collect.clusterNumber + "-" + Collect.houseNumber + "-" + Collect.rosterNumber,
-                                                    Collect.participantInitials));
+                                            MHealthUtil.buildPatient(Collect.participantID));
                                 }
                             }
                             //END NEW MHEALTH//
@@ -352,6 +356,7 @@ public class ODKView extends ScrollView implements OnLongClickListener {
      * Called when another activity returns information to answer this question.
      */
     public void setBinaryData(Object answer) {
+        Log.d("ODKView", "setBinaryData");
         boolean set = false;
         for (QuestionWidget q : widgets) {
             if (q instanceof BinaryWidget) {
@@ -384,7 +389,6 @@ public class ODKView extends ScrollView implements OnLongClickListener {
         FormController formController = Collect.getInstance().getFormController();
         Set<String> keys = bundle.keySet();
         for (String key : keys) {
-            Log.d("ODKView", "key: "+key);
             for (QuestionWidget questionWidget : widgets) {
                 FormEntryPrompt prompt = questionWidget.getFormEntryPrompt();
                 TreeReference treeReference =
