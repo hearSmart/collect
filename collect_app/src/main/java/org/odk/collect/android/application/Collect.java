@@ -31,10 +31,12 @@ import android.support.v7.app.AppCompatDelegate;
 import android.util.Log;
 
 import com.crashlytics.android.Crashlytics;
+import com.crashlytics.android.core.CrashlyticsCore;
 import com.evernote.android.job.JobManager;
 import com.evernote.android.job.JobManagerCreateException;
 import com.google.android.gms.analytics.GoogleAnalytics;
 import com.google.android.gms.analytics.Tracker;
+import com.google.firebase.analytics.FirebaseAnalytics;
 import com.squareup.leakcanary.LeakCanary;
 import com.squareup.leakcanary.RefWatcher;
 
@@ -69,6 +71,7 @@ import javax.inject.Inject;
 
 import dagger.android.DispatchingAndroidInjector;
 import dagger.android.HasActivityInjector;
+import io.fabric.sdk.android.Fabric;
 import timber.log.Timber;
 
 import static org.odk.collect.android.logic.PropertyManager.PROPMGR_USERNAME;
@@ -98,6 +101,8 @@ public class Collect extends Application implements HasActivityInjector {
     public static final int DEFAULT_FONTSIZE_INT = 21;
     public static final String OFFLINE_LAYERS = ODK_ROOT + File.separator + "layers";
     public static final String SETTINGS = ODK_ROOT + File.separator + "settings";
+
+    public static final boolean ANALYTICS_ENABLED = true;
 
     public static String defaultSysLanguage;
     private static Collect singleton;
@@ -301,6 +306,13 @@ public class Collect extends Application implements HasActivityInjector {
         }
 
         setupLeakCanary();
+
+        CrashlyticsCore crashlyticsCore = new CrashlyticsCore.Builder()
+                //.disabled(BuildConfig.DEBUG)
+                .build();
+
+        Fabric.with(this, new Crashlytics.Builder().core(crashlyticsCore).build());
+        FirebaseAnalytics.getInstance(this).setAnalyticsCollectionEnabled(ANALYTICS_ENABLED);
     }
 
     protected RefWatcher setupLeakCanary() {

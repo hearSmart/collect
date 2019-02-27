@@ -14,50 +14,6 @@ ant.condition(property: 'os', value: 'unix') {
     os(family: 'unix')
 }
 
-// Build numbers were manually set until 1067
-def LEGACY_BUILD_NUMBER_OFFSET = 1067
-
-// Based on http://stackoverflow.com/questions/17097263#24121734
-def getMasterCommitCount = { ->
-    try {
-        def stdout = new ByteArrayOutputStream()
-        exec {
-            switch (ant.properties.os) {
-                case 'windows':
-                    commandLine 'cmd', '/c', 'git', 'rev-list', '--first-parent', '--count', 'master'
-                    break
-                case 'unix':
-                    commandLine 'git', 'rev-list', '--first-parent', '--count', 'master'
-                    break
-            }
-            standardOutput = stdout
-        }
-        return Integer.parseInt(stdout.toString().trim())
-    } catch (ignored) {
-        return -1
-    }
-}
-
-def getVersionName = { ->
-    try {
-        def stdout = new ByteArrayOutputStream()
-        exec {
-            switch (ant.properties.os) {
-                case 'windows':
-                    commandLine 'cmd', '/c', 'git', 'describe', '--tags', '--dirty', '--always'
-                    break
-                case 'unix':
-                    commandLine 'git', 'describe', '--tags', '--dirty', '--always'
-                    break
-            }
-            standardOutput = stdout
-        }
-        return stdout.toString().trim()
-    } catch (ignored) {
-        return null
-    }
-}
-
 def secretsFile = file('secrets.properties')
 def secrets = new Properties()
 if (secretsFile.exists()) {
@@ -83,9 +39,9 @@ android {
     buildTypes {
         // Release build for all forks
         release {
-            minifyEnabled(false)
+            minifyEnabled(true)
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
-            resValue("bool", "FIREBASE_CRASHLYTICS_ENABLED", "false")
+            //resValue("bool", "FIREBASE_CRASHLYTICS_ENABLED", "true")
         }
         // Release build for the original ODK Collect app
         odkCollectRelease {
@@ -94,12 +50,13 @@ android {
             }
             minifyEnabled(true)
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
-            resValue("bool", "FIREBASE_CRASHLYTICS_ENABLED", "true")
+            //resValue("bool", "FIREBASE_CRASHLYTICS_ENABLED", "true")
         }
         debug {
             debuggable(true)
             testCoverageEnabled(true)
-            resValue("bool", "FIREBASE_CRASHLYTICS_ENABLED", "false")
+            //resValue("bool", "FIREBASE_CRASHLYTICS_ENABLED", "true")
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 
@@ -183,13 +140,13 @@ dependencies {
     implementation "com.android.support:exifinterface:${rootProject.supportLibraryVersion}"
     implementation "com.android.support:multidex:1.0.3"
 
-    implementation "com.google.android.gms:play-services-analytics:${rootProject.playServicesVersion}"
-    implementation "com.google.android.gms:play-services-auth:${rootProject.playServicesVersion}"
-    implementation "com.google.android.gms:play-services-maps:${rootProject.playServicesVersion}"
-    implementation "com.google.android.gms:play-services-location:${rootProject.playServicesVersion}"
+    implementation "com.google.android.gms:play-services-analytics:16.0.7"
+    implementation "com.google.android.gms:play-services-auth:16.0.1"
+    implementation "com.google.android.gms:play-services-maps:16.1.0"
+    implementation "com.google.android.gms:play-services-location:16.0.0"
 
-    implementation "com.google.firebase:firebase-core:${rootProject.playServicesVersion}"
-    implementation "com.crashlytics.sdk.android:crashlytics:2.9.2"
+    implementation "com.google.firebase:firebase-core:16.0.7"
+    implementation "com.crashlytics.sdk.android:crashlytics:2.9.9"
 
     implementation("com.google.code.gson:gson:2.6.2") {
         exclude group: 'org.apache.httpcomponents'
@@ -224,7 +181,7 @@ dependencies {
     implementation("com.google.apis:google-api-services-sheets:v4-rev463-1.22.0") {
         exclude group: 'org.apache.httpcomponents'
     }
-    implementation "com.jakewharton.timber:timber:4.7.0"
+    implementation "com.jakewharton.timber:timber:4.7.1"
     implementation "com.google.zxing:core:3.3.0"
     implementation "com.journeyapps:zxing-android-embedded:3.5.0"
     //implementation "net.danlew:android.joda:2.9.9"
@@ -305,11 +262,9 @@ dependencies {
     }
 
     androidTestImplementation "com.squareup.okhttp3:mockwebserver:3.9.0"
+    implementation 'com.google.firebase:firebase-crash:16.2.1'
 }
 
 // Must be at bottom to prevent dependency collisions
 // https://developers.google.com/android/guides/google-services-plugin
 apply plugin: 'com.google.gms.google-services'
-
-
-

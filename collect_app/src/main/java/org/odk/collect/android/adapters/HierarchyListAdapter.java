@@ -57,7 +57,7 @@ public class HierarchyListAdapter extends RecyclerView.Adapter<HierarchyListAdap
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         holder.bind(hierarchyElements.get(position), listener);
-        if(hierarchyElements.get(position).getPrimaryText().contains("Participant ID"))
+        if(hierarchyElements!=null && hierarchyElements.get(position)!=null && hierarchyElements.get(position).getPrimaryText()!=null && hierarchyElements.get(position).getPrimaryText().contains("Participant ID"))
             Collect.participantID = hierarchyElements.get(position).getSecondaryText();
 
         if (hierarchyElements.get(position).getIcon() != null) {
