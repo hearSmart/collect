@@ -145,6 +145,7 @@ public class ODKView extends ScrollView implements OnLongClickListener {
                             Intent i = new Intent(intentName);
 
                             Log.d("ODKView", "intentName:"+intentName);
+                            Log.d("ODKView", "Collect.participantID:"+Collect.participantID);
 
                             //START NEW MHEALTH//
                             if(intentName.equalsIgnoreCase("starthearingtest") && Collect.participantID!=null && Collect.participantID.length()>0) {

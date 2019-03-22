@@ -64,6 +64,7 @@ import android.widget.TextView;
 import com.google.common.collect.ImmutableList;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
+import com.hearxgroup.encryption.Logger;
 
 import org.javarosa.core.model.FormDef;
 import org.javarosa.core.model.FormIndex;
@@ -134,6 +135,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -1155,7 +1157,7 @@ public class FormEntryActivity extends CollectAbstractActivity implements Animat
                 && getCurrentViewIfODKView() != null) {
             try {
                 FailedConstraint constraint = formController.saveAllScreenAnswers(
-                        getCurrentViewIfODKView().getAnswers(),
+                        getCurrentViewIfODKView(),
                         evaluateConstraints);
                 if (constraint != null) {
                     createConstraintToast(constraint.index, constraint.status);

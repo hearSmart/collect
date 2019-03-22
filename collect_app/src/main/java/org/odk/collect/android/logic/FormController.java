@@ -15,6 +15,7 @@
 package org.odk.collect.android.logic;
 
 import android.support.annotation.Nullable;
+import android.util.Log;
 
 import org.javarosa.core.model.CoreModelModule;
 import org.javarosa.core.model.FormDef;
@@ -45,9 +46,11 @@ import org.javarosa.model.xform.XPathReference;
 import org.javarosa.xform.parse.XFormParser;
 import org.javarosa.xpath.XPathParseTool;
 import org.javarosa.xpath.expr.XPathExpression;
+import org.odk.collect.android.application.Collect;
 import org.odk.collect.android.exception.JavaRosaException;
 import org.odk.collect.android.utilities.TimerLogger;
 import org.odk.collect.android.views.ODKView;
+import org.odk.collect.android.widgets.QuestionWidget;
 
 import java.io.File;
 import java.io.IOException;
@@ -684,14 +687,34 @@ public class FormController {
     /**
      * @return FailedConstraint of first failed constraint or null if all questions were saved.
      */
-    public FailedConstraint saveAllScreenAnswers(HashMap<FormIndex, IAnswerData> answers,
+    public FailedConstraint saveAllScreenAnswers(ODKView odkView,
                                                  boolean evaluateConstraints) throws JavaRosaException {
         if (currentPromptIsQuestion()) {
+            ArrayList<QuestionWidget> questions = odkView.getQuestionWidgets();
+            HashMap<FormIndex, IAnswerData> answers = odkView.getAnswers();
+
+            boolean isParticipantIdQ = false;
+
+            for(QuestionWidget questionWidget: questions) {
+                if(questionWidget.getFormEntryPrompt().getQuestionText()!=null) {
+                    if(questionWidget.getFormEntryPrompt().getQuestionText().toLowerCase().trim().equalsIgnoreCase("participant id"))
+                        isParticipantIdQ = true;
+                }
+            }
+
             for (FormIndex index : answers.keySet()) {
                 // Within a group, you can only save for question events
                 if (getEvent(index) == FormEntryController.EVENT_QUESTION) {
                     int saveStatus;
                     IAnswerData answer = answers.get(index);
+
+                    if(answer!=null && answer.getDisplayText()!=null) {
+                        if(isParticipantIdQ) {
+                            Collect.participantID = answer.getDisplayText();
+                            //Log.d("saveAllScreenAnswers", "participantID = " + answer.getDisplayText());
+                        }
+
+                    }
                     if (evaluateConstraints) {
                         saveStatus = answerQuestion(index, answer);
                         if (saveStatus != FormEntryController.ANSWER_OK) {
