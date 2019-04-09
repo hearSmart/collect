@@ -39,7 +39,6 @@ import org.odk.collect.android.fragments.dialogs.SimpleDialog;
 import org.odk.collect.android.utilities.ToastUtils;
 
 import static android.content.Context.MODE_PRIVATE;
-import static android.content.Context.MODE_WORLD_READABLE;
 import static org.odk.collect.android.fragments.dialogs.MovingBackwardsDialog.MOVING_BACKWARDS_DIALOG_TAG;
 import static org.odk.collect.android.preferences.AdminKeys.KEY_ADMIN_PW;
 import static org.odk.collect.android.preferences.AdminKeys.KEY_CHANGE_ADMIN_PASSWORD;
@@ -60,7 +59,7 @@ public class AdminPreferencesFragment extends BasePreferenceFragment implements 
         super.onCreate(savedInstanceState);
         PreferenceManager prefMgr = getPreferenceManager();
         prefMgr.setSharedPreferencesName(ADMIN_PREFERENCES);
-        prefMgr.setSharedPreferencesMode(MODE_WORLD_READABLE);
+        prefMgr.setSharedPreferencesMode(MODE_PRIVATE);
 
         addPreferencesFromResource(R.xml.admin_preferences);
 
@@ -175,7 +174,7 @@ public class AdminPreferencesFragment extends BasePreferenceFragment implements 
             super.onCreate(savedInstanceState);
             PreferenceManager prefMgr = getPreferenceManager();
             prefMgr.setSharedPreferencesName(ADMIN_PREFERENCES);
-            prefMgr.setSharedPreferencesMode(MODE_WORLD_READABLE);
+            prefMgr.setSharedPreferencesMode(MODE_PRIVATE);
 
             addPreferencesFromResource(R.xml.main_menu_access_preferences);
             findPreference(KEY_EDIT_SAVED).setEnabled((Boolean) AdminSharedPreferences.getInstance().get(ALLOW_OTHER_WAYS_OF_EDITING_FORM));
@@ -204,7 +203,7 @@ public class AdminPreferencesFragment extends BasePreferenceFragment implements 
             super.onCreate(savedInstanceState);
             PreferenceManager prefMgr = getPreferenceManager();
             prefMgr.setSharedPreferencesName(ADMIN_PREFERENCES);
-            prefMgr.setSharedPreferencesMode(MODE_WORLD_READABLE);
+            prefMgr.setSharedPreferencesMode(MODE_PRIVATE);
 
             addPreferencesFromResource(R.xml.user_settings_access_preferences);
         }
@@ -230,7 +229,7 @@ public class AdminPreferencesFragment extends BasePreferenceFragment implements 
             super.onCreate(savedInstanceState);
             PreferenceManager prefMgr = getPreferenceManager();
             prefMgr.setSharedPreferencesName(ADMIN_PREFERENCES);
-            prefMgr.setSharedPreferencesMode(MODE_WORLD_READABLE);
+            prefMgr.setSharedPreferencesMode(MODE_PRIVATE);
 
             addPreferencesFromResource(R.xml.form_entry_access_preferences);
 
