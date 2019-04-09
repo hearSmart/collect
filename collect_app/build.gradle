@@ -21,14 +21,14 @@ if (secretsFile.exists()) {
 }
 
 android {
-    compileSdkVersion(27)
+    compileSdkVersion(28)
 
     defaultConfig {
         applicationId('org.odk.collect.android')
         minSdkVersion(19)
         targetSdkVersion(27)
-        versionCode 20006
-        versionName "20006-MHEALTH"
+        versionCode 20007
+        versionName "20007-MHEALTH-DEV"
         testInstrumentationRunner('android.support.test.runner.AndroidJUnitRunner')
         multiDexEnabled true
         vectorDrawables.useSupportLibrary = true
@@ -140,12 +140,12 @@ dependencies {
     implementation "com.android.support:exifinterface:${rootProject.supportLibraryVersion}"
     implementation "com.android.support:multidex:1.0.3"
 
-    implementation "com.google.android.gms:play-services-analytics:16.0.7"
+    implementation "com.google.android.gms:play-services-analytics:16.0.8"
     implementation "com.google.android.gms:play-services-auth:16.0.1"
     implementation "com.google.android.gms:play-services-maps:16.1.0"
     implementation "com.google.android.gms:play-services-location:16.0.0"
 
-    implementation "com.google.firebase:firebase-core:16.0.7"
+    implementation "com.google.firebase:firebase-core:16.0.8"
     implementation "com.crashlytics.sdk.android:crashlytics:2.9.9"
 
     implementation("com.google.code.gson:gson:2.6.2") {
@@ -182,7 +182,7 @@ dependencies {
         exclude group: 'org.apache.httpcomponents'
     }
     implementation "com.jakewharton.timber:timber:4.7.1"
-    implementation "com.google.zxing:core:3.3.0"
+    implementation "com.google.zxing:core:3.3.2"
     implementation "com.journeyapps:zxing-android-embedded:3.5.0"
     //implementation "net.danlew:android.joda:2.9.9"
 
@@ -205,8 +205,8 @@ dependencies {
     testAnnotationProcessor "com.google.dagger:dagger-compiler:${rootProject.daggerVersion}"
 
     // RxJava 2:
-    implementation "io.reactivex.rxjava2:rxandroid:2.0.2"
-    implementation "io.reactivex.rxjava2:rxjava:2.1.10"
+    implementation "io.reactivex.rxjava2:rxandroid:2.1.1"
+    implementation "io.reactivex.rxjava2:rxjava:2.2.8"
 
     // Better "Subjects" for Rx:
     implementation "com.jakewharton.rxrelay2:rxrelay:2.0.0"
@@ -231,13 +231,10 @@ dependencies {
     //INTERNAL AAR LIBRARIES
     implementation(name: 'android-module-mhealthintegration-release-v2003-BETA1', ext: 'aar')
     api 'com.github.hearSmart:android-module-hearx:v1010'
-    //RX JAVA
-    implementation 'io.reactivex.rxjava2:rxandroid:2.0.2'
-    implementation 'io.reactivex.rxjava2:rxjava:2.1.12'
     //GUAVA
     //implementation 'com.google.guava:guava:23.6-android'
     //PHONENUMBER
-    implementation 'io.michaelrocks:libphonenumber-android:8.9.9'
+    implementation 'io.michaelrocks:libphonenumber-android:8.10.7'
     // END //
 
     // Testing-only dependencies
@@ -261,7 +258,7 @@ dependencies {
         exclude group: 'com.google.code.findbugs', module: 'jsr305'
     }
 
-    androidTestImplementation "com.squareup.okhttp3:mockwebserver:3.9.0"
+    androidTestImplementation "com.squareup.okhttp3:mockwebserver:3.9.1"
     implementation 'com.google.firebase:firebase-crash:16.2.1'
 }
 
