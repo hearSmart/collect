@@ -22,18 +22,20 @@ import android.widget.DatePicker;
 import org.javarosa.core.model.IFormElement;
 import org.javarosa.core.model.QuestionDef;
 import org.javarosa.form.api.FormEntryPrompt;
+import org.joda.time.DateTime;
 import org.joda.time.LocalDateTime;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.odk.collect.android.BuildConfig;
+import org.odk.collect.android.formentry.questions.QuestionDetails;
+import org.odk.collect.android.support.MockFormEntryPromptBuilder;
+import org.odk.collect.android.support.RobolectricHelpers;
+import org.odk.collect.android.support.TestScreenContextActivity;
 import org.odk.collect.android.widgets.DateTimeWidget;
 import org.odk.collect.android.widgets.DateWidget;
-import org.odk.collect.android.widgets.TimeWidget;
+import org.odk.collect.android.widgets.utilities.DateTimeWidgetUtils;
 import org.robolectric.RobolectricTestRunner;
-import org.robolectric.RuntimeEnvironment;
-import org.robolectric.annotation.Config;
 
 import java.util.TimeZone;
 
@@ -42,8 +44,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(constants = BuildConfig.class)
-/** https://github.com/opendatakit/collect/issues/356
+/** https://github.com/getodk/collect/issues/356
  * Verify that the {@link DateWidget} and {@link DateTimeWidget} widget skips over
  * "daylight savings gaps".
  * This is needed on the day and time of a daylight savings transition because that date/time
@@ -54,10 +55,14 @@ public class DaylightSavingTest {
     private static final String EAT_IME_ZONE = "Africa/Nairobi";
     private static final String CET_TIME_ZONE = "Europe/Warsaw";
 
+    private TestScreenContextActivity widgetActivity;
+    private DateTimeWidgetUtils widgetUtils;
     private TimeZone currentTimeZone;
 
     @Before
     public void setUp() {
+        widgetActivity = RobolectricHelpers.buildThemedActivity(TestScreenContextActivity.class).get();
+        widgetUtils = mock(DateTimeWidgetUtils.class);
         currentTimeZone = TimeZone.getDefault();
     }
 
@@ -94,8 +99,11 @@ public class DaylightSavingTest {
 
     private DateWidget prepareDateWidget(int year, int month, int day) {
         QuestionDef questionDefStub = mock(QuestionDef.class);
-        IFormElement iformElementStub = mock(IFormElement.class);
-        FormEntryPrompt formEntryPromptStub = mock(FormEntryPrompt.class);
+
+        FormEntryPrompt formEntryPromptStub = new MockFormEntryPromptBuilder()
+                .withIndex("index")
+                .build();
+        IFormElement iformElementStub = formEntryPromptStub.getFormElement();
 
         when(iformElementStub.getAdditionalAttribute(anyString(), anyString())).thenReturn(null);
         when(formEntryPromptStub.getQuestion()).thenReturn(questionDefStub);
@@ -109,31 +117,25 @@ public class DaylightSavingTest {
         when(datePickerDialog.getDatePicker().getMonth()).thenReturn(month);
         when(datePickerDialog.getDatePicker().getDayOfMonth()).thenReturn(day);
 
-        DateWidget dateWidget = new DateWidget(RuntimeEnvironment.application, formEntryPromptStub);
-        dateWidget.setDatePickerDialog(datePickerDialog);
-        return dateWidget;
+        return new DateWidget(widgetActivity, new QuestionDetails(formEntryPromptStub, "formAnalyticsID"), widgetUtils);
     }
 
     private DateTimeWidget prepareDateTimeWidget(int year, int month, int day, int hour, int minute) {
         QuestionDef questionDefStub = mock(QuestionDef.class);
-        IFormElement iformElementStub = mock(IFormElement.class);
-        FormEntryPrompt formEntryPromptStub = mock(FormEntryPrompt.class);
+
+        FormEntryPrompt formEntryPromptStub = new MockFormEntryPromptBuilder()
+                .withIndex("index")
+                .build();
+        IFormElement iformElementStub = formEntryPromptStub.getFormElement();
 
         when(iformElementStub.getAdditionalAttribute(anyString(), anyString())).thenReturn(null);
         when(formEntryPromptStub.getQuestion()).thenReturn(questionDefStub);
         when(formEntryPromptStub.getFormElement()).thenReturn(iformElementStub);
         when(formEntryPromptStub.getQuestion().getAppearanceAttr()).thenReturn("no-calendar");
 
-        DateWidget dateWidget = mock(DateWidget.class);
-        when(dateWidget.getDate()).thenReturn(new LocalDateTime().withYear(year).withMonthOfYear(month).withDayOfMonth(day));
-
-        TimeWidget timeWidget = mock(TimeWidget.class);
-        when(timeWidget.getHour()).thenReturn(hour);
-        when(timeWidget.getMinute()).thenReturn(minute);
-
-        DateTimeWidget dateTimeWidget = new DateTimeWidget(RuntimeEnvironment.application, formEntryPromptStub);
-        dateTimeWidget.setDateWidget(dateWidget);
-        dateTimeWidget.setTimeWidget(timeWidget);
+        DateTimeWidget dateTimeWidget = new DateTimeWidget(widgetActivity, new QuestionDetails(formEntryPromptStub, "formAnalyticsID"), widgetUtils);
+        dateTimeWidget.setData(new LocalDateTime().withDate(year, month, day));
+        dateTimeWidget.setData(new DateTime().withTime(hour, minute, 0, 0));
 
         return dateTimeWidget;
     }

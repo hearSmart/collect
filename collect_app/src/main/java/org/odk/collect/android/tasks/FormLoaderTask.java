@@ -16,9 +16,9 @@ package org.odk.collect.android.tasks;
 
 import android.content.Intent;
 import android.database.Cursor;
+import android.database.SQLException;
 import android.os.AsyncTask;
 
-import org.apache.commons.io.IOUtils;
 import org.javarosa.core.model.FormDef;
 import org.javarosa.core.model.FormIndex;
 import org.javarosa.core.model.instance.InstanceInitializationFactory;
@@ -26,7 +26,6 @@ import org.javarosa.core.model.instance.TreeElement;
 import org.javarosa.core.model.instance.TreeReference;
 import org.javarosa.core.model.instance.utils.DefaultAnswerResolver;
 import org.javarosa.core.reference.ReferenceManager;
-import org.javarosa.core.reference.RootTranslator;
 import org.javarosa.form.api.FormEntryController;
 import org.javarosa.form.api.FormEntryModel;
 import org.javarosa.xform.parse.XFormParser;
@@ -34,7 +33,7 @@ import org.javarosa.xform.util.XFormUtils;
 import org.javarosa.xpath.XPathTypeMismatchException;
 import org.odk.collect.android.R;
 import org.odk.collect.android.application.Collect;
-import org.odk.collect.android.database.ItemsetDbAdapter;
+import org.odk.collect.android.fastexternalitemset.ItemsetDbAdapter;
 import org.odk.collect.android.external.ExternalAnswerResolver;
 import org.odk.collect.android.external.ExternalDataHandler;
 import org.odk.collect.android.external.ExternalDataManager;
@@ -43,15 +42,14 @@ import org.odk.collect.android.external.ExternalDataReader;
 import org.odk.collect.android.external.ExternalDataReaderImpl;
 import org.odk.collect.android.external.handler.ExternalDataHandlerPull;
 import org.odk.collect.android.listeners.FormLoaderListener;
-import org.odk.collect.android.logic.FileReferenceFactory;
-import org.odk.collect.android.logic.FormController;
+import org.odk.collect.android.javarosawrapper.FormController;
 import org.odk.collect.android.utilities.FileUtils;
 import org.odk.collect.android.utilities.FormDefCache;
+import org.odk.collect.android.utilities.TranslationHandler;
 import org.odk.collect.android.utilities.ZipUtils;
 
 import java.io.File;
 import java.io.FileFilter;
-import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
@@ -60,6 +58,8 @@ import java.util.Map;
 
 import au.com.bytecode.opencsv.CSVReader;
 import timber.log.Timber;
+
+import static org.odk.collect.android.forms.FormUtils.setupReferenceManagerForForm;
 
 /**
  * Background task for loading a form.
@@ -72,6 +72,7 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
 
     private FormLoaderListener stateListener;
     private String errorMsg;
+    private String warningMsg;
     private String instancePath;
     private final String xpath;
     private final String waitingXPath;
@@ -82,7 +83,7 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
     private ExternalDataManager externalDataManager;
     private FormDef formDef;
 
-    protected static class FECWrapper {
+    public static class FECWrapper {
         FormController controller;
         boolean usedSavepoint;
 
@@ -91,7 +92,7 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
             this.usedSavepoint = usedSavepoint;
         }
 
-        protected FormController getController() {
+        public FormController getController() {
             return controller;
         }
 
@@ -121,17 +122,33 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
         errorMsg = null;
 
         final String formPath = path[0];
-        final File formXml = new File(formPath);
-
-        final FormDef formDef = createFormDefFromCacheOrXml(formPath, formXml);
-
-        if (errorMsg != null || formDef == null) {
+        if (formPath == null) {
+            Timber.e("formPath is null");
+            errorMsg = "formPath is null, please email support@getodk.org with a description of what you were doing when this happened.";
             return null;
         }
 
-        // set paths to /sdcard/odk/forms/formfilename-media/
-        final String formFileName = formXml.getName().substring(0, formXml.getName().lastIndexOf("."));
-        final File formMediaDir = new File(formXml.getParent(), formFileName + "-media");
+        final File formXml = new File(formPath);
+        final File formMediaDir = FileUtils.getFormMediaDir(formXml);
+
+        setupReferenceManagerForForm(ReferenceManager.instance(), formMediaDir);
+
+        FormDef formDef = null;
+        try {
+            formDef = createFormDefFromCacheOrXml(formPath, formXml);
+        } catch (StackOverflowError e) {
+            Timber.e(e);
+            errorMsg = TranslationHandler.getString(Collect.getInstance(), R.string.too_complex_form);
+        } catch (Exception | Error e) {
+            Timber.w(e);
+            errorMsg = "An unknown error has occurred. Please ask your project leadership to email support@getodk.org with information about this form.";
+            errorMsg += "\n\n" + e.getMessage();
+        }
+
+        if (errorMsg != null || formDef == null) {
+            Timber.w("No exception loading form but errorMsg set");
+            return null;
+        }
 
         externalDataManager = new ExternalDataManagerImpl(formMediaDir);
 
@@ -164,7 +181,7 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
             final long start = System.currentTimeMillis();
             usedSavepoint = initializeForm(formDef, fec);
             Timber.i("Form initialized in %.3f seconds.", (System.currentTimeMillis() - start) / 1000F);
-        } catch (RuntimeException e) {
+        } catch (IOException | RuntimeException e) {
             Timber.e(e);
             if (e.getCause() instanceof XPathTypeMismatchException) {
                 // this is a case of
@@ -173,34 +190,14 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
                 // the data are imported, the survey will be unusable
                 // but we should give the option to the user to edit the form
                 // otherwise the survey will be TOTALLY inaccessible.
-                Timber.w("We have a syntactically correct instance, but the data threw an "
-                                + "exception inside JR. We should allow editing.");
+                Timber.w("We have a syntactically correct instance, but the data threw an exception inside JR. We should allow editing.");
             } else {
                 errorMsg = e.getMessage();
                 return null;
             }
         }
 
-        // Remove previous forms
-        ReferenceManager.instance().clearSession();
-
         processItemSets(formMediaDir);
-
-        // This should get moved to the Application Class
-        if (ReferenceManager.instance().getFactories().length == 0) {
-            // this is /sdcard/odk
-            ReferenceManager.instance().addReferenceFactory(new FileReferenceFactory(Collect.ODK_ROOT));
-        }
-
-        // Set jr://... to point to /sdcard/odk/forms/filename-media/
-        ReferenceManager.instance().addSessionRootTranslator(
-                new RootTranslator("jr://images/", "jr://file/forms/" + formFileName + "-media/"));
-        ReferenceManager.instance().addSessionRootTranslator(
-                new RootTranslator("jr://image/", "jr://file/forms/" + formFileName + "-media/"));
-        ReferenceManager.instance().addSessionRootTranslator(
-                new RootTranslator("jr://audio/", "jr://file/forms/" + formFileName + "-media/"));
-        ReferenceManager.instance().addSessionRootTranslator(
-                new RootTranslator("jr://video/", "jr://file/forms/" + formFileName + "-media/"));
 
         final FormController fc = new FormController(formMediaDir, fec, instancePath == null ? null
                 : new File(instancePath));
@@ -208,11 +205,15 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
             // we are resuming after having terminated -- set index to this
             // position...
             FormIndex idx = fc.getIndexFromXPath(xpath);
-            fc.jumpToIndex(idx);
+            if (idx != null) {
+                fc.jumpToIndex(idx);
+            }
         }
         if (waitingXPath != null) {
             FormIndex idx = fc.getIndexFromXPath(waitingXPath);
-            fc.setIndexWaitingForData(idx);
+            if (idx != null) {
+                fc.setIndexWaitingForData(idx);
+            }
         }
         data = new FECWrapper(fc, usedSavepoint);
         return data;
@@ -220,37 +221,35 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
 
     private FormDef createFormDefFromCacheOrXml(String formPath, File formXml) {
         publishProgress(
-                Collect.getInstance().getString(R.string.survey_loading_reading_form_message));
+                TranslationHandler.getString(Collect.getInstance(), R.string.survey_loading_reading_form_message));
 
         final FormDef formDefFromCache = FormDefCache.readCache(formXml);
         if (formDefFromCache != null) {
             return formDefFromCache;
         }
 
-        FileInputStream fis = null;
         // no binary, read from xml
-        try {
-            Timber.i("Attempting to load from: %s", formXml.getAbsolutePath());
-            final long start = System.currentTimeMillis();
-            fis = new FileInputStream(formXml);
-            FormDef formDefFromXml = XFormUtils.getFormFromInputStream(fis);
-            if (formDefFromXml == null) {
-                errorMsg = "Error reading XForm file";
-            } else {
-                Timber.i("Loaded in %.3f seconds.",
-                        (System.currentTimeMillis() - start) / 1000F);
-                formDef = formDefFromXml;
+        Timber.i("Attempting to load from: %s", formXml.getAbsolutePath());
+        final long start = System.currentTimeMillis();
+        String lastSavedSrc = FileUtils.getOrCreateLastSavedSrc(formXml);
+        FormDef formDefFromXml = XFormUtils.getFormFromFormXml(formPath, lastSavedSrc);
+        if (formDefFromXml == null) {
+            Timber.w("Error reading XForm file");
+            errorMsg = "Error reading XForm file";
+        } else {
+            Timber.i("Loaded in %.3f seconds.",
+                    (System.currentTimeMillis() - start) / 1000F);
+            formDef = formDefFromXml;
 
-                FormDefCache.writeCache(formDef, formPath);
-
-                return formDefFromXml;
+            try {
+                FormDefCache.writeCache(formDef, formXml.getPath());
+            } catch (IOException e) {
+                Timber.e(e);
             }
-        } catch (Exception e) {
-            Timber.e(e);
-            errorMsg = e.getMessage();
-        } finally {
-            IOUtils.closeQuietly(fis);
+
+            return formDefFromXml;
         }
+
         return null;
     }
 
@@ -293,7 +292,7 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
         }
     }
 
-    private boolean initializeForm(FormDef formDef, FormEntryController fec) {
+    private boolean initializeForm(FormDef formDef, FormEntryController fec) throws IOException {
         final InstanceInitializationFactory instanceInit = new InstanceInitializationFactory();
         boolean usedSavepoint = false;
 
@@ -301,7 +300,7 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
             File instanceXml = new File(instancePath);
 
             // Use the savepoint file only if it's newer than the last manual save
-            final File savepointFile = SaveToDiskTask.getSavepointFile(instanceXml.getName());
+            final File savepointFile = SaveFormToDisk.getSavepointFile(instanceXml.getName());
             if (savepointFile.exists()
                     && savepointFile.lastModified() > instanceXml.lastModified()) {
                 usedSavepoint = true;
@@ -314,20 +313,21 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
                 // This order is important. Import data, then initialize.
                 try {
                     Timber.i("Importing data");
-                    publishProgress(Collect.getInstance().getString(R.string.survey_loading_reading_data_message));
+                    publishProgress(TranslationHandler.getString(Collect.getInstance(), R.string.survey_loading_reading_data_message));
                     importData(instanceXml, fec);
                     formDef.initialize(false, instanceInit);
-                } catch (RuntimeException e) {
-                    Timber.e(e);
-
+                } catch (IOException | RuntimeException e) {
                     // Skip a savepoint file that is corrupted or 0-sized
                     if (usedSavepoint && !(e.getCause() instanceof XPathTypeMismatchException)) {
                         usedSavepoint = false;
                         instancePath = null;
                         formDef.initialize(true, instanceInit);
+                        Timber.e(e, "Bad savepoint");
                     } else {
                         // The saved instance is corrupted.
-                        throw e;
+                        Timber.e(e, "Corrupt saved instance");
+                        throw new RuntimeException("An unknown error has occurred. Please ask your project leadership to email support@getodk.org with information about this form."
+                            + "\n\n" + e.getMessage());
                     }
                 }
             } else {
@@ -368,7 +368,7 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
             }
         });
 
-        Map<String, File> externalDataMap = new HashMap<String, File>();
+        Map<String, File> externalDataMap = new HashMap<>();
 
         if (csvFiles != null) {
 
@@ -404,9 +404,10 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
         }
     }
 
-    static void importData(File instanceFile, FormEntryController fec) {
+    // Copied from XFormParser.loadXmlInstance in order to set ExternalAnswerResolver for search()
+    public static void importData(File instanceFile, FormEntryController fec) throws IOException, RuntimeException {
         // convert files into a byte array
-        byte[] fileBytes = FileUtils.getFileAsBytes(instanceFile);
+        byte[] fileBytes = org.apache.commons.io.FileUtils.readFileToByteArray(instanceFile);
 
         // get the root of the saved and template instances
         TreeElement savedRoot = XFormParser.restoreDataModel(fileBytes, null).getRoot();
@@ -427,6 +428,11 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
         XFormParser.setAnswerResolver(new ExternalAnswerResolver());
         templateRoot.populate(savedRoot, fec.getModel().getForm());
         XFormParser.setAnswerResolver(new DefaultAnswerResolver());
+
+        // FormInstanceParser.parseInstance is responsible for initial creation of instances. It explicitly sets the
+        // main instance name to null so we force this again on deserialization because some code paths rely on the main
+        // instance not having a name. Must be before the call on setRoot because setRoot also sets the root's name.
+        fec.getModel().getForm().getInstance().setName(null);
 
         // populated model to current form
         fec.getModel().getForm().getInstance().setRoot(templateRoot);
@@ -459,7 +465,7 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
                     if (wrapper == null) {
                         stateListener.loadingError(errorMsg);
                     } else {
-                        stateListener.loadingComplete(this, formDef);
+                        stateListener.loadingComplete(this, formDef, warningMsg);
                     }
                 }
             } catch (Exception e) {
@@ -549,8 +555,8 @@ public class FormLoaderTask extends AsyncTask<String, String, FormLoaderTask.FEC
                 ida.addRow(pathHash, columnHeaders, nextLine);
 
             }
-        } catch (IOException e) {
-            Timber.e(e, "Exception thrown while reading csv file");
+        } catch (IOException | SQLException e) {
+            warningMsg = e.getMessage();
         } finally {
             if (withinTransaction) {
                 ida.commit();

@@ -1,7 +1,8 @@
 apply plugin: 'com.android.application'
-apply plugin: 'io.fabric'
+apply plugin: 'com.google.firebase.crashlytics'
 apply from: '../config/quality.gradle'
 apply from: '../config/jacoco.gradle'
+apply plugin: 'kotlin-android'
 
 import com.android.ddmlib.DdmPreferences
 
@@ -63,17 +64,23 @@ def secrets = new Properties()
 if (secretsFile.exists()) {
     secrets.load(new FileInputStream(secretsFile))
 }
+def googleMapsApiKey = secrets.getProperty('GOOGLE_MAPS_API_KEY', '')
+def mapboxToken = secrets.getProperty('MAPBOX_ACCESS_TOKEN', '')
 
 android {
-    compileSdkVersion(27)
+    compileSdkVersion rootProject.androidCompileSdk
+
+    buildFeatures {
+        viewBinding true
+    }
 
     defaultConfig {
         applicationId('org.odk.collect.android')
-        minSdkVersion(16)
-        targetSdkVersion(22)
+        minSdkVersion rootProject.androidMinSdk
+        targetSdkVersion rootProject.androidTargetSdk
         versionCode LEGACY_BUILD_NUMBER_OFFSET + getMasterCommitCount()
         versionName getVersionName()
-        testInstrumentationRunner('android.support.test.runner.AndroidJUnitRunner')
+        testInstrumentationRunner('androidx.test.runner.AndroidJUnitRunner')
         multiDexEnabled true
         vectorDrawables.useSupportLibrary = true
         archivesBaseName = 'collect'
@@ -88,9 +95,18 @@ android {
                 keyPassword secrets.getProperty('RELEASE_KEY_PASSWORD')
             }
         }
+
+        // This uses the default debug keystore that the Android tooling creates https://stackoverflow.com/questions/16622528/android-studio-debug-keystore
+        selfSignedRelease {
+            storeFile new File(System.getProperty("user.home") + '/.android/debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
     }
 
     buildTypes {
+
         // Release build for all forks
         release {
             if (secrets.getProperty('RELEASE_STORE_FILE')) {
@@ -98,21 +114,39 @@ android {
             }
             minifyEnabled(true)
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
-            resValue("bool", "FIREBASE_CRASHLYTICS_ENABLED", "false")
+            resValue("string", "GOOGLE_MAPS_API_KEY", googleMapsApiKey)
+            buildConfigField 'String', "MAPBOX_ACCESS_TOKEN", '"' + mapboxToken + '"'
         }
-        // Release build for the original ODK Collect app
+
+        // Release build for the official ODK Collect app
         odkCollectRelease {
             if (secrets.getProperty('RELEASE_STORE_FILE')) {
                 signingConfig signingConfigs.release
             }
             minifyEnabled(true)
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
-            resValue("bool", "FIREBASE_CRASHLYTICS_ENABLED", "true")
+            resValue("string", "GOOGLE_MAPS_API_KEY", googleMapsApiKey)
+            buildConfigField 'String', "MAPBOX_ACCESS_TOKEN", '"' + mapboxToken + '"'
+
+            matchingFallbacks = ['release'] // So other modules use release build type for this
         }
+
+        selfSignedRelease {
+            signingConfig signingConfigs.selfSignedRelease
+
+            minifyEnabled(true)
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+            resValue("string", "GOOGLE_MAPS_API_KEY", googleMapsApiKey)
+            buildConfigField 'String', "MAPBOX_ACCESS_TOKEN", '"' + mapboxToken + '"'
+
+            matchingFallbacks = ['release'] // So other modules use release build type for this
+        }
+
         debug {
             debuggable(true)
-            testCoverageEnabled(true)
-            resValue("bool", "FIREBASE_CRASHLYTICS_ENABLED", "false")
+            testCoverageEnabled((findProperty("enableJacoco") ?: "false").toBoolean())
+            resValue("string", "GOOGLE_MAPS_API_KEY", googleMapsApiKey)
+            buildConfigField 'String', "MAPBOX_ACCESS_TOKEN", '"' + mapboxToken + '"'
         }
     }
 
@@ -140,15 +174,19 @@ android {
         pickFirst 'META-INF/services/com.fasterxml.jackson.core.ObjectCodec'
         pickFirst 'META-INF/services/javax.ws.rs.ext.MessageBodyReader'
         pickFirst 'META-INF/services/javax.ws.rs.ext.MessageBodyWriter'
+
+        // To ensure that ODK Collect is installable on all devices, we don't use
+        // abiFilters to exclude any ABIs; but to keep the APK slim, we include
+        // the Mapbox native library only for 32-bit and 64-bit ARM devices and
+        // omit it for all X86 devices.
+        exclude 'lib/x86/libmapbox-gl.so'
+        exclude 'lib/x86_64/libmapbox-gl.so'
     }
 
     compileOptions {
+        coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    dexOptions {
-        javaMaxHeapSize '2048M'
     }
 
     testOptions {
@@ -156,10 +194,26 @@ android {
             includeAndroidResources = true
             returnDefaultValues = true
             all {
-                // https://discuss.circleci.com/t/11207/24
-                // it seems any number works, but 1024 - 2048 seem reasonable 
-                maxHeapSize = "2048M"
+                maxHeapSize = "1024m"
             }
+        }
+    }
+
+    lintOptions {
+        abortOnError true
+        xmlReport true
+        htmlReport true
+        checkGeneratedSources true
+        checkDependencies true
+        lintConfig file("${project.rootDir}/config/lint.xml")
+    }
+
+    sourceSets {
+        androidTest {
+            java.srcDirs += "src/commonTest/java"
+        }
+        test {
+            java.srcDirs += "src/commonTest/java"
         }
     }
 }
@@ -170,134 +224,172 @@ configurations.all {
         cacheChangingModulesFor(0, 'seconds')
 
         force('com.google.code.findbugs:jsr305:1.3.9')
+        force 'org.objenesis:objenesis:2.6'
     }
     transitive = true
 }
 
-allprojects {
-    tasks.withType(JavaCompile) {
-        options.compilerArgs << '-Xlint:all'
-    }
-}
-
 dependencies {
-    implementation fileTree(dir: 'libs', include: '*.jar')
-    implementation "com.android.support:support-v13:${rootProject.supportLibraryVersion}"
-    implementation "com.android.support:customtabs:${rootProject.supportLibraryVersion}"
-    implementation "com.android.support:design:${rootProject.supportLibraryVersion}"
-    implementation "com.android.support:appcompat-v7:${rootProject.supportLibraryVersion}"
-    implementation "com.android.support:design:${rootProject.supportLibraryVersion}"
-    implementation "com.android.support:cardview-v7:${rootProject.supportLibraryVersion}"
-    implementation "com.android.support:exifinterface:${rootProject.supportLibraryVersion}"
-    implementation "com.android.support:multidex:1.0.3"
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.1.1'
 
-    implementation "com.google.android.gms:play-services-analytics:${rootProject.playServicesVersion}"
-    implementation "com.google.android.gms:play-services-auth:${rootProject.playServicesVersion}"
-    implementation "com.google.android.gms:play-services-maps:${rootProject.playServicesVersion}"
-    implementation "com.google.android.gms:play-services-location:${rootProject.playServicesVersion}"
+    implementation 'androidx.legacy:legacy-support-v13:1.0.0'
+    implementation 'androidx.browser:browser:1.3.0'
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation "androidx.work:work-runtime:2.5.0"
 
-    implementation "com.google.firebase:firebase-core:${rootProject.playServicesVersion}"
-    implementation "com.crashlytics.sdk.android:crashlytics:2.9.2"
+    implementation 'androidx.cardview:cardview:1.0.0'
+    implementation 'androidx.exifinterface:exifinterface:1.3.2'
+    implementation 'androidx.multidex:multidex:2.0.1'
+    implementation 'androidx.preference:preference:1.1.1'
+    implementation "androidx.fragment:fragment:${rootProject.fragmentVersion}"
 
-    implementation("com.google.code.gson:gson:2.6.2") {
-        exclude group: 'org.apache.httpcomponents'
-    }
+    implementation 'com.google.android.material:material:1.3.0'
+    implementation 'com.google.android:flexbox:2.0.1'
 
-    implementation("com.google.http-client:google-http-client:1.22.0") {
-        exclude group: 'org.apache.httpcomponents'
-    }
-    implementation("com.google.oauth-client:google-oauth-client:1.22.0") {
-        exclude group: 'org.apache.httpcomponents'
-    }
+    implementation "com.google.android.gms:play-services-auth:19.0.0"
+    implementation "com.google.android.gms:play-services-maps:17.0.0"
+    implementation "com.google.android.gms:play-services-location:17.1.0"
 
-    implementation "com.evernote:android-job:1.2.5"
-    implementation "com.rarepebble:colorpicker:2.3.1"
-    implementation "commons-io:commons-io:2.6"
-    implementation "net.sf.kxml:kxml2:2.3.0"
-    implementation "net.sf.opencsv:opencsv:2.3"
-    implementation("org.opendatakit:opendatakit-javarosa:2.11.2") {
+    implementation 'com.google.firebase:firebase-analytics:18.0.2'
+    implementation 'com.google.firebase:firebase-crashlytics:17.3.1'
+
+    implementation 'com.mapbox.mapboxsdk:mapbox-android-sdk:9.2.1'
+
+    // Upgrading will require more changes in our codebase https://github.com/getodk/collect/issues/4305
+    implementation 'com.mapbox.mapboxsdk:mapbox-android-plugin-annotation-v9:0.8.0'
+
+    implementation("com.google.guava:guava:30.1-android")
+
+    implementation "com.squareup.okhttp3:okhttp:${rootProject.okhttp3Version}"
+    implementation "com.squareup.okhttp3:okhttp-tls:${rootProject.okhttp3Version}"
+    implementation 'com.burgstaller:okhttp-digest:2.5'
+
+    implementation 'com.github.mohamadian:PersianJodaTime:1.2'
+    implementation 'com.github.chanmratekoko:myanmar-calendar:1.0.6.RC3'
+    implementation 'bikramsambat:bikram-sambat:1.1.0'
+    implementation "com.rarepebble:colorpicker:3.0.1"
+    implementation "commons-io:commons-io:2.5" // Commons 2.6+ introduce java.nio usage that we can't access until our minSdkVersion >= 26 (https://developer.android.com/reference/java/io/File#toPath())
+    implementation "net.sf.opencsv:opencsv:2.4"
+    implementation("org.getodk:javarosa:3.1.0") {
         exclude group: 'joda-time'
         exclude group: 'org.slf4j'
     }
-    implementation "com.karumi:dexter:4.2.0"
-    implementation "org.osmdroid:osmdroid-android:5.6.4"
-    implementation "org.slf4j:slf4j-android:1.6.1-RC1"
-    implementation("com.google.api-client:google-api-client-android:1.22.0") {
+    implementation "com.karumi:dexter:6.2.2"
+    implementation "org.osmdroid:osmdroid-android:6.1.10"
+    implementation("com.google.api-client:google-api-client-android:1.31.2") {
         exclude group: 'org.apache.httpcomponents'
+        exclude group: 'com.google.guava'
     }
-    implementation("com.google.apis:google-api-services-drive:v3-rev64-1.22.0") {
+    implementation("com.google.apis:google-api-services-drive:v3-rev20210207-1.31.0") {
         exclude group: 'org.apache.httpcomponents'
+        exclude group: 'com.google.guava'
     }
-    implementation("com.google.apis:google-api-services-sheets:v4-rev463-1.22.0") {
+    implementation("com.google.apis:google-api-services-sheets:v4-rev20201130-1.31.0") {
         exclude group: 'org.apache.httpcomponents'
+        exclude group: 'com.google.guava'
     }
-    implementation "com.jakewharton.timber:timber:4.7.0"
-    implementation "com.google.zxing:core:3.3.0"
-    implementation "com.journeyapps:zxing-android-embedded:3.5.0"
-    implementation "net.danlew:android.joda:2.9.9"
+
+    implementation "com.jakewharton.timber:timber:${rootProject.timberVersion}"
+    implementation "org.slf4j:slf4j-api:2.0.0-alpha0"
+    implementation "com.arcao:slf4j-timber:3.1@aar"
+
+    //updating would require minSdkVersion >=24, it uses zxing:core 3.3.2 by default
+    implementation "com.journeyapps:zxing-android-embedded:3.6.0"
+
+    implementation "net.danlew:android.joda:2.10.9"
 
     // Real LeakCanary for debug builds only: notifications, analysis, etc
-    debugImplementation "com.squareup.leakcanary:leakcanary-android:${rootProject.leakyCanaryVersion}"
-    // No-Op version of LeakCanary for release builds: no notifications, no analysis, nothing
-    releaseImplementation "com.squareup.leakcanary:leakcanary-android-no-op:${rootProject.leakyCanaryVersion}"
-    testImplementation "com.squareup.leakcanary:leakcanary-android-no-op:${rootProject.leakyCanaryVersion}"
-    androidTestImplementation "com.squareup.leakcanary:leakcanary-android-no-op:${rootProject.leakyCanaryVersion}"
-    odkCollectReleaseImplementation "com.squareup.leakcanary:leakcanary-android-no-op:${rootProject.leakyCanaryVersion}"
+    debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.6'
 
     // Android Architecture Components:
-    implementation "android.arch.lifecycle:extensions:1.1.1"
+    implementation "androidx.lifecycle:lifecycle-extensions:2.2.0"
+    implementation "androidx.viewpager2:viewpager2:1.0.0"
 
     // Dagger:
+    implementation "com.google.dagger:dagger:${rootProject.daggerVersion}"
+    annotationProcessor "com.google.dagger:dagger-compiler:${rootProject.daggerVersion}"
+
+    // Needed for injection into Robolectric tests
+    testAnnotationProcessor "com.google.dagger:dagger-compiler:${rootProject.daggerVersion}"
+
+    // Dagger Android:
     implementation "com.google.dagger:dagger-android:${rootProject.daggerVersion}"
     implementation "com.google.dagger:dagger-android-support:${rootProject.daggerVersion}"
     annotationProcessor "com.google.dagger:dagger-android-processor:${rootProject.daggerVersion}"
-    annotationProcessor "com.google.dagger:dagger-compiler:${rootProject.daggerVersion}"
-    testAnnotationProcessor "com.google.dagger:dagger-compiler:${rootProject.daggerVersion}"
 
     // RxJava 2:
-    implementation "io.reactivex.rxjava2:rxandroid:2.0.2"
-    implementation "io.reactivex.rxjava2:rxjava:2.1.10"
+    implementation "io.reactivex.rxjava2:rxandroid:2.1.1"
+    implementation "io.reactivex.rxjava2:rxjava:2.2.21"
 
     // Better "Subjects" for Rx:
-    implementation "com.jakewharton.rxrelay2:rxrelay:2.0.0"
+    implementation "com.jakewharton.rxrelay2:rxrelay:2.1.1"
 
-    // Android bindings for Rx:
-    implementation "com.jakewharton.rxbinding2:rxbinding:2.0.0"
+    implementation 'com.github.Armen101:AudioRecordView:1.0.5'
 
-    // RxLifecycle (binds subscription cleanup to component lifecycle):
-    implementation "com.trello.rxlifecycle2:rxlifecycle:${rootProject.rxLifecycleVersion}"
-    implementation "com.trello.rxlifecycle2:rxlifecycle-android:${rootProject.rxLifecycleVersion}"
-    implementation "com.trello.rxlifecycle2:rxlifecycle-android-lifecycle:${rootProject.rxLifecycleVersion}"
+    // Glide
+    implementation 'com.github.bumptech.glide:glide:4.12.0'
+
+    implementation('org.mp4parser:muxer:1.9.41') {
+        exclude group: 'org.hamcrest'
+    }
+
+    implementation project(':shared')
+    implementation project(':nbistubs')
+    implementation project(':strings')
+    implementation project(':material')
+    implementation project(':async')
+    implementation project(':analytics')
+    implementation project(':audioclips')
+    implementation project(path: ':audiorecorder')
 
     // Makes binding to Views easy:
-    implementation "com.jakewharton:butterknife:8.8.1"
-    annotationProcessor "com.jakewharton:butterknife-compiler:8.8.1"
+    implementation "com.jakewharton:butterknife:10.2.3"
+    annotationProcessor "com.jakewharton:butterknife-compiler:10.2.3"
+
+    // Annotations understood by FindBugs
+    compileOnly 'com.google.code.findbugs:annotations:3.0.1'
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
 
     // Used to generate documentation screenshots.
-    androidTestImplementation "tools.fastlane:screengrab:1.1.0"
+    androidTestImplementation "tools.fastlane:screengrab:2.0.0"
 
     // Testing-only dependencies
-    testImplementation "junit:junit:4.12"
-    testImplementation "org.mockito:mockito-core:2.8.47"
-    testImplementation "org.robolectric:robolectric:3.5.1"
-    testImplementation "org.robolectric:shadows-multidex:3.5.1"
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.mockito:mockito-core:3.7.7"
+    testImplementation 'org.mockito:mockito-inline:3.7.7'
+
+    testImplementation project(path: ':testshared')
+    testImplementation "org.robolectric:robolectric:4.3.1"
+    testImplementation 'androidx.test.ext:junit:1.1.2'
+    debugImplementation("androidx.fragment:fragment-testing:${rootProject.fragmentVersion}") {
+        exclude group: 'androidx.test', module: 'monitor' //fixes issue https://github.com/android/android-test/issues/731
+    }
+    testImplementation "androidx.arch.core:core-testing:2.1.0"
+    testImplementation "org.robolectric:shadows-multidex:4.5.1"
+    testImplementation "com.squareup.okhttp3:mockwebserver:${rootProject.okhttp3Version}"
+    testImplementation "com.squareup.okhttp3:okhttp-tls:${rootProject.okhttp3Version}"
 
     // power mock (for mocking final methods which is not handled by mockito)
-    testImplementation "org.powermock:powermock-module-junit4:1.6.4"
-    testImplementation "org.powermock:powermock-api-mockito2:1.7.3"
+    testImplementation "org.powermock:powermock-module-junit4:2.0.9"
+    testImplementation "org.powermock:powermock-api-mockito2:2.0.9"
 
-    androidTestImplementation "org.mockito:mockito-android:2.11.0"
-    androidTestImplementation("com.android.support.test:runner:1.0.1") {
+    testImplementation 'org.hamcrest:hamcrest:2.2'
+
+    testImplementation "org.json:json:20201115"
+
+    androidTestImplementation "org.mockito:mockito-android:3.7.7"
+    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
+    androidTestImplementation "androidx.arch.core:core-testing:2.1.0"
+    androidTestImplementation 'androidx.test.espresso:espresso-contrib:3.3.0'
+    androidTestImplementation("androidx.test.espresso:espresso-intents:3.3.0") {
         exclude group: 'com.android.support', module: 'support-annotations'
         exclude group: 'com.google.code.findbugs', module: 'jsr305'
     }
 
-    androidTestImplementation("com.android.support.test.espresso:espresso-intents:3.0.1") {
-        exclude group: 'com.android.support', module: 'support-annotations'
-        exclude group: 'com.google.code.findbugs', module: 'jsr305'
-    }
+    androidTestImplementation "com.squareup.okhttp3:mockwebserver:${rootProject.okhttp3Version}"
 
-    androidTestImplementation "com.squareup.okhttp3:mockwebserver:3.9.0"
+    androidTestImplementation "androidx.work:work-testing:2.5.0"
 }
 
 // Must be at bottom to prevent dependency collisions

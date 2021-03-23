@@ -14,21 +14,22 @@
 
 package org.odk.collect.android.widgets;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
-import android.text.InputFilter;
-import android.text.InputType;
-import android.text.method.DigitsKeyListener;
 
 import org.javarosa.core.model.data.IAnswerData;
 import org.javarosa.core.model.data.IntegerData;
-import org.javarosa.form.api.FormEntryPrompt;
-import org.odk.collect.android.application.Collect;
+import org.odk.collect.android.R;
 import org.odk.collect.android.external.ExternalAppsUtils;
+import org.odk.collect.android.formentry.questions.QuestionDetails;
+import org.odk.collect.android.widgets.utilities.StringWidgetUtils;
+import org.odk.collect.android.utilities.ToastUtils;
+import org.odk.collect.android.widgets.utilities.WaitingForDataRegistry;
 
-import java.util.Locale;
+import timber.log.Timber;
 
 import static org.odk.collect.android.utilities.ApplicationConstants.RequestCodes;
 
@@ -37,77 +38,35 @@ import static org.odk.collect.android.utilities.ApplicationConstants.RequestCode
  * does not launch, enable the text area for regular data entry.
  * <p>
  * See {@link org.odk.collect.android.widgets.ExStringWidget} for usage.
- *
- * @author mitchellsundt@gmail.com
  */
+@SuppressLint("ViewConstructor")
 public class ExIntegerWidget extends ExStringWidget {
 
-    public ExIntegerWidget(Context context, FormEntryPrompt prompt) {
-        super(context, prompt);
-
-        answer.setInputType(InputType.TYPE_NUMBER_FLAG_SIGNED);
-
-        // only allows numbers and no periods
-        answer.setKeyListener(new DigitsKeyListener(true, false));
-
-        // ints can only hold 2,147,483,648. we allow 999,999,999
-        InputFilter[] fa = new InputFilter[1];
-        fa[0] = new InputFilter.LengthFilter(9);
-        answer.setFilters(fa);
-
-        Integer i = getIntegerAnswerValue();
-
-        if (i != null) {
-            answer.setText(String.format(Locale.US, "%d", i));
-        }
-    }
-
-    private Integer getIntegerAnswerValue() {
-        IAnswerData dataHolder = getFormEntryPrompt().getAnswerValue();
-        Integer d = null;
-        if (dataHolder != null) {
-            Object dataValue = dataHolder.getValue();
-            if (dataValue != null) {
-                if (dataValue instanceof Double) {
-                    d = ((Double) dataValue).intValue();
-                } else {
-                    d = (Integer) dataValue;
-                }
-            }
-        }
-        return d;
+    public ExIntegerWidget(Context context, QuestionDetails questionDetails, WaitingForDataRegistry waitingForDataRegistry) {
+        super(context, questionDetails, waitingForDataRegistry);
+        StringWidgetUtils.adjustEditTextAnswerToIntegerWidget(answerText, questionDetails.getPrompt());
     }
 
     @Override
     protected void fireActivity(Intent i) throws ActivityNotFoundException {
-        i.putExtra("value", getIntegerAnswerValue());
-        Collect.getInstance().getActivityLogger().logInstanceAction(this, "launchIntent",
-                i.getAction(), getFormEntryPrompt().getIndex());
-
-        ((Activity) getContext()).startActivityForResult(i,
-                RequestCodes.EX_INT_CAPTURE);
+        i.putExtra(DATA_NAME, StringWidgetUtils.getIntegerAnswerValueFromIAnswerData(getFormEntryPrompt().getAnswerValue()));
+        try {
+            ((Activity) getContext()).startActivityForResult(i, RequestCodes.EX_INT_CAPTURE);
+        } catch (SecurityException e) {
+            Timber.i(e);
+            ToastUtils.showLongToast(R.string.not_granted_permission);
+        }
     }
 
     @Override
     public IAnswerData getAnswer() {
-        String s = answer.getText().toString();
-        if (s.equals("")) {
-            return null;
-        } else {
-            try {
-                return new IntegerData(Integer.parseInt(s));
-            } catch (Exception numberFormatException) {
-                return null;
-            }
-        }
+        return StringWidgetUtils.getIntegerData(answerText.getText().toString(), getFormEntryPrompt());
     }
 
-    /**
-     * Allows answer to be set externally in {@link FormEntryActivity}.
-     */
     @Override
-    public void setBinaryData(Object answer) {
+    public void setData(Object answer) {
         IntegerData integerData = ExternalAppsUtils.asIntegerData(answer);
-        this.answer.setText(integerData == null ? null : integerData.getValue().toString());
+        answerText.setText(integerData == null ? null : integerData.getValue().toString());
+        widgetValueChanged();
     }
 }

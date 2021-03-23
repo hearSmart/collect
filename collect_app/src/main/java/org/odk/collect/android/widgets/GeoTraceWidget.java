@@ -17,146 +17,111 @@ package org.odk.collect.android.widgets;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.util.TypedValue;
+import android.view.View;
 
 import org.javarosa.core.model.data.IAnswerData;
 import org.javarosa.core.model.data.StringData;
 import org.javarosa.form.api.FormEntryPrompt;
-import org.odk.collect.android.R;
-import org.odk.collect.android.activities.FormEntryActivity;
-import org.odk.collect.android.activities.GeoTraceGoogleMapActivity;
-import org.odk.collect.android.activities.GeoTraceOsmMapActivity;
-import org.odk.collect.android.listeners.PermissionListener;
-import org.odk.collect.android.preferences.PreferenceKeys;
-import org.odk.collect.android.utilities.PlayServicesUtil;
-import org.odk.collect.android.widgets.interfaces.BinaryWidget;
 
-import static org.odk.collect.android.utilities.ApplicationConstants.RequestCodes;
-import static org.odk.collect.android.utilities.PermissionUtils.requestLocationPermissions;
+import org.odk.collect.android.R;
+import org.odk.collect.android.databinding.GeoWidgetAnswerBinding;
+import org.odk.collect.android.formentry.questions.QuestionDetails;
+import org.odk.collect.android.geo.MapConfigurator;
+import org.odk.collect.android.widgets.interfaces.WidgetDataReceiver;
+import org.odk.collect.android.widgets.interfaces.GeoDataRequester;
+import org.odk.collect.android.widgets.utilities.WaitingForDataRegistry;
 
 /**
- * GeoShapeTrace is the widget that allows the user to get Collect multiple GPS points based on the
- * locations.
- * <p>
- * Date
- *
- * @author Jon Nordling (jonnordling@gmail.com)
+ * GeoTraceWidget allows the user to collect a trace of GPS points as the
+ * device moves along a path.
  */
-
 @SuppressLint("ViewConstructor")
-public class GeoTraceWidget extends QuestionWidget implements BinaryWidget {
+public class GeoTraceWidget extends QuestionWidget implements WidgetDataReceiver {
+    GeoWidgetAnswerBinding binding;
 
-    public static final String GOOGLE_MAP_KEY = "google_maps";
-    public static final String TRACE_LOCATION = "gp";
+    private final WaitingForDataRegistry waitingForDataRegistry;
+    private final MapConfigurator mapConfigurator;
+    private final GeoDataRequester geoDataRequester;
 
-    public SharedPreferences sharedPreferences;
-    public String mapSDK;
-
-    private final Button createTraceButton;
-    private final TextView answerDisplay;
-
-    public GeoTraceWidget(Context context, FormEntryPrompt prompt) {
-        super(context, prompt);
-        LinearLayout layout = new LinearLayout(getContext());
-        layout.setOrientation(LinearLayout.VERTICAL);
-
-        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-        mapSDK = sharedPreferences.getString(PreferenceKeys.KEY_MAP_SDK, GOOGLE_MAP_KEY);
-
-        answerDisplay = getCenteredAnswerTextView();
-
-        createTraceButton = getSimpleButton(getContext().getString(R.string.get_trace));
-
-        if (prompt.isReadOnly()) {
-            createTraceButton.setEnabled(false);
-        }
-
-        LinearLayout answerLayout = new LinearLayout(getContext());
-        answerLayout.setOrientation(LinearLayout.VERTICAL);
-        answerLayout.addView(createTraceButton);
-        answerLayout.addView(answerDisplay);
-        addAnswerView(answerLayout);
-
-        boolean dataAvailable = false;
-        String s = prompt.getAnswerText();
-        if (s != null && !s.equals("")) {
-            dataAvailable = true;
-            setBinaryData(s);
-        }
-
-        updateButtonLabelsAndVisibility(dataAvailable);
-    }
-
-    private void startGeoTraceActivity() {
-        Intent i;
-        if (mapSDK.equals(GOOGLE_MAP_KEY)) {
-            if (PlayServicesUtil.isGooglePlayServicesAvailable(getContext())) {
-                i = new Intent(getContext(), GeoTraceGoogleMapActivity.class);
-            } else {
-                PlayServicesUtil.showGooglePlayServicesAvailabilityErrorDialog(getContext());
-                return;
-            }
-        } else {
-            i = new Intent(getContext(), GeoTraceOsmMapActivity.class);
-        }
-        String s = answerDisplay.getText().toString();
-        if (s.length() != 0) {
-            i.putExtra(TRACE_LOCATION, s);
-        }
-        ((Activity) getContext()).startActivityForResult(i, RequestCodes.GEOTRACE_CAPTURE);
-    }
-
-    private void updateButtonLabelsAndVisibility(boolean dataAvailable) {
-        if (dataAvailable) {
-            createTraceButton.setText(
-                    getContext().getString(R.string.geotrace_view_change_location));
-        } else {
-            createTraceButton.setText(getContext().getString(R.string.get_trace));
-        }
+    public GeoTraceWidget(Context context, QuestionDetails questionDetails, WaitingForDataRegistry waitingForDataRegistry,
+                          MapConfigurator mapConfigurator, GeoDataRequester geoDataRequester) {
+        super(context, questionDetails);
+        this.waitingForDataRegistry = waitingForDataRegistry;
+        this.mapConfigurator = mapConfigurator;
+        this.geoDataRequester = geoDataRequester;
     }
 
     @Override
-    public void setBinaryData(Object answer) {
-        answerDisplay.setText(answer.toString());
+    protected View onCreateAnswerView(Context context, FormEntryPrompt prompt, int answerFontSize) {
+        binding = GeoWidgetAnswerBinding.inflate(((Activity) context).getLayoutInflater());
+
+        binding.simpleButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, answerFontSize);
+        binding.geoAnswerText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, answerFontSize);
+
+        binding.simpleButton.setOnClickListener(v -> {
+            if (mapConfigurator.isAvailable(context)) {
+                geoDataRequester.requestGeoTrace(context, prompt, getAnswerText(), waitingForDataRegistry);
+            } else {
+                mapConfigurator.showUnavailableMessage(context);
+            }
+        });
+
+        String stringAnswer = prompt.getAnswerText();
+        binding.geoAnswerText.setText(stringAnswer);
+
+        boolean dataAvailable = stringAnswer != null && !stringAnswer.isEmpty();
+
+        if (getFormEntryPrompt().isReadOnly()) {
+            if (dataAvailable) {
+                binding.simpleButton.setText(R.string.geotrace_view_read_only);
+            } else {
+                binding.simpleButton.setVisibility(View.GONE);
+            }
+        } else {
+            if (dataAvailable) {
+                binding.simpleButton.setText(R.string.geotrace_view_change_location);
+            } else {
+                binding.simpleButton.setText(R.string.get_trace);
+            }
+        }
+
+        return binding.getRoot();
     }
 
     @Override
     public IAnswerData getAnswer() {
-        String s = answerDisplay.getText().toString();
-        return !s.equals("")
-                ? new StringData(s)
-                : null;
-    }
-
-    @Override
-    public void clearAnswer() {
-        answerDisplay.setText(null);
-        updateButtonLabelsAndVisibility(false);
+        return getAnswerText().isEmpty() ? null : new StringData(getAnswerText());
     }
 
     @Override
     public void setOnLongClickListener(OnLongClickListener l) {
-        createTraceButton.setOnLongClickListener(l);
-        answerDisplay.setOnLongClickListener(l);
+        binding.simpleButton.setOnLongClickListener(l);
+        binding.geoAnswerText.setOnLongClickListener(l);
     }
 
     @Override
-    public void onButtonClick(int buttonId) {
-        requestLocationPermissions((FormEntryActivity) getContext(), new PermissionListener() {
-            @Override
-            public void granted() {
-                waitForData();
-                startGeoTraceActivity();
-            }
+    public void clearAnswer() {
+        binding.geoAnswerText.setText(null);
+        binding.simpleButton.setText(R.string.get_trace);
+        widgetValueChanged();
+    }
 
-            @Override
-            public void denied() {
-            }
-        });
+    @Override
+    public void cancelLongPress() {
+        super.cancelLongPress();
+        binding.simpleButton.cancelLongPress();
+        binding.geoAnswerText.cancelLongPress();
+    }
+
+    @Override
+    public void setData(Object answer) {
+        binding.geoAnswerText.setText(answer.toString());
+        binding.simpleButton.setText(answer.toString().isEmpty() ? R.string.get_trace : R.string.geotrace_view_change_location);
+        widgetValueChanged();
+    }
+
+    private String getAnswerText() {
+        return binding.geoAnswerText.getText().toString();
     }
 }

@@ -34,11 +34,11 @@ public class ToastUtils {
     }
 
     private static void showToast(int messageResource, int duration) {
-        Toast.makeText(Collect.getInstance(), Collect.getInstance().getString(messageResource), duration).show();
+        Toast.makeText(Collect.getInstance(), TranslationHandler.getString(Collect.getInstance(), messageResource), duration).show();
     }
 
     public static void showShortToastInMiddle(int messageResource) {
-        showToastInMiddle(Collect.getInstance().getString(messageResource), Toast.LENGTH_SHORT);
+        showToastInMiddle(TranslationHandler.getString(Collect.getInstance(), messageResource), Toast.LENGTH_SHORT);
     }
 
     public static void showShortToastInMiddle(String message) {
@@ -46,15 +46,19 @@ public class ToastUtils {
     }
 
     public static void showLongToastInMiddle(int messageResource) {
-        showToastInMiddle(Collect.getInstance().getString(messageResource), Toast.LENGTH_LONG);
+        showToastInMiddle(TranslationHandler.getString(Collect.getInstance(), messageResource), Toast.LENGTH_LONG);
     }
 
     private static void showToastInMiddle(String message, int duration) {
         Toast toast = Toast.makeText(Collect.getInstance(), message, duration);
-        ViewGroup group = (ViewGroup) toast.getView();
-        TextView messageTextView = (TextView) group.getChildAt(0);
-        messageTextView.setTextSize(21);
-        messageTextView.setGravity(Gravity.CENTER);
+        try {
+            ViewGroup group = (ViewGroup) toast.getView();
+            TextView messageTextView = (TextView) group.getChildAt(0);
+            messageTextView.setTextSize(21);
+            messageTextView.setGravity(Gravity.CENTER);
+        } catch (Exception ignored) {
+            // ignored
+        }
 
         toast.setGravity(Gravity.CENTER, 0, 0);
         toast.show();

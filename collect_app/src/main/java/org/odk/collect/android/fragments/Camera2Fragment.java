@@ -16,7 +16,7 @@
 
 package org.odk.collect.android.fragments;
 
-import android.annotation.TargetApi;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Fragment;
 import android.content.Context;
@@ -37,12 +37,11 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.support.annotation.NonNull;
-import android.support.v13.app.FragmentCompat;
+import androidx.annotation.NonNull;
+import androidx.legacy.app.FragmentCompat;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.LayoutInflater;
@@ -52,8 +51,8 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import org.odk.collect.android.R;
-import org.odk.collect.android.application.Collect;
 import org.odk.collect.android.fragments.dialogs.ErrorDialog;
+import org.odk.collect.android.storage.StoragePathProvider;
 import org.odk.collect.android.utilities.CameraUtils;
 
 import java.io.File;
@@ -68,7 +67,6 @@ import java.util.concurrent.TimeUnit;
 
 import timber.log.Timber;
 
-@TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class Camera2Fragment extends Fragment
         implements View.OnClickListener, FragmentCompat.OnRequestPermissionsResultCallback {
 
@@ -399,7 +397,6 @@ public class Camera2Fragment extends Fragment
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
         textureView = view.findViewById(R.id.texture);
-        textureView.setOnClickListener(this);
     }
 
     @Override
@@ -536,6 +533,8 @@ public class Camera2Fragment extends Fragment
     /**
      * Opens the camera specified by {@link Camera2Fragment#cameraId}.
      */
+
+    @SuppressLint("MissingPermission") // Permission is handled in ImageWidget,
     private void openCamera(int width, int height) {
         setUpCameraOutputs(width, height);
         configureTransform(width, height);
@@ -644,6 +643,8 @@ public class Camera2Fragment extends Fragment
                                 previewRequest = previewRequestBuilder.build();
                                 captureSession.setRepeatingRequest(previewRequest,
                                         captureCallback, backgroundHandler);
+
+                                getActivity().runOnUiThread(() -> textureView.setOnClickListener(Camera2Fragment.this));
                             } catch (CameraAccessException e) {
                                 Timber.e(e);
                             }
@@ -855,7 +856,7 @@ public class Camera2Fragment extends Fragment
             byte[] bytes = new byte[buffer.remaining()];
             buffer.get(bytes);
 
-            CameraUtils.savePhoto(Collect.TMPFILE_PATH, bytes);
+            CameraUtils.savePhoto(new StoragePathProvider().getTmpImageFilePath(), bytes);
         }
     }
 

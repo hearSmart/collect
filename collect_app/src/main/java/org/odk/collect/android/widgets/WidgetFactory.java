@@ -14,24 +14,50 @@
 
 package org.odk.collect.android.widgets;
 
+import android.app.Activity;
 import android.content.Context;
+import android.hardware.SensorManager;
 
-import com.google.android.gms.analytics.HitBuilders;
+import androidx.lifecycle.LifecycleOwner;
 
 import org.javarosa.core.model.Constants;
-import org.javarosa.core.model.ItemsetBinding;
-import org.javarosa.core.model.QuestionDef;
 import org.javarosa.form.api.FormEntryPrompt;
-import org.javarosa.xpath.expr.XPathExpression;
 import org.odk.collect.android.application.Collect;
-import org.odk.collect.android.logic.FormController;
-import org.odk.collect.android.utilities.FileUtils;
+import org.odk.collect.android.formentry.FormEntryViewModel;
+import org.odk.collect.android.formentry.questions.QuestionDetails;
+import org.odk.collect.android.geo.MapProvider;
+import org.odk.collect.android.permissions.PermissionsProvider;
+import org.odk.collect.android.utilities.ActivityAvailability;
+import org.odk.collect.android.utilities.Appearances;
+import org.odk.collect.android.utilities.CameraUtils;
+import org.odk.collect.android.utilities.ExternalWebPageHelper;
+import org.odk.collect.android.utilities.ExternalAppIntentProvider;
+import org.odk.collect.android.utilities.MediaUtils;
+import org.odk.collect.android.utilities.QuestionMediaManager;
+import org.odk.collect.android.widgets.items.LabelWidget;
+import org.odk.collect.android.widgets.items.LikertWidget;
+import org.odk.collect.android.widgets.items.ListMultiWidget;
+import org.odk.collect.android.widgets.items.ListWidget;
+import org.odk.collect.android.widgets.items.RankingWidget;
+import org.odk.collect.android.widgets.items.SelectMultiImageMapWidget;
+import org.odk.collect.android.widgets.items.SelectMultiMinimalWidget;
+import org.odk.collect.android.widgets.items.SelectMultiWidget;
+import org.odk.collect.android.widgets.items.SelectOneImageMapWidget;
+import org.odk.collect.android.widgets.items.SelectOneMinimalWidget;
+import org.odk.collect.android.widgets.items.SelectOneWidget;
+import org.odk.collect.android.widgets.utilities.ActivityGeoDataRequester;
+import org.odk.collect.android.widgets.utilities.AudioPlayer;
+import org.odk.collect.android.widgets.utilities.AudioRecorderRecordingStatusHandler;
+import org.odk.collect.android.widgets.utilities.DateTimeWidgetUtils;
+import org.odk.collect.android.widgets.utilities.GetContentAudioFileRequester;
+import org.odk.collect.android.widgets.utilities.RecordingRequester;
+import org.odk.collect.android.widgets.utilities.RecordingRequesterProvider;
+import org.odk.collect.android.widgets.utilities.WaitingForDataRegistry;
+import org.odk.collect.audiorecorder.recording.AudioRecorder;
 
-import java.io.ByteArrayInputStream;
-import java.util.List;
-import java.util.Locale;
-
-import timber.log.Timber;
+import static org.odk.collect.android.utilities.Appearances.MAPS;
+import static org.odk.collect.android.utilities.Appearances.PLACEMENT_MAP;
+import static org.odk.collect.android.utilities.Appearances.hasAppearance;
 
 /**
  * Convenience class that handles creation of widgets.
@@ -40,286 +66,240 @@ import timber.log.Timber;
  */
 public class WidgetFactory {
 
-    private WidgetFactory() {
+    private static final String PICKER_APPEARANCE = "picker";
 
+    private final Activity context;
+    private final boolean readOnlyOverride;
+    private final boolean useExternalRecorder;
+    private final WaitingForDataRegistry waitingForDataRegistry;
+    private final QuestionMediaManager questionMediaManager;
+    private final AudioPlayer audioPlayer;
+    private final ActivityAvailability activityAvailability;
+    private final RecordingRequesterProvider recordingRequesterProvider;
+    private final FormEntryViewModel formEntryViewModel;
+    private final AudioRecorder audioRecorder;
+    private final LifecycleOwner viewLifecycle;
+
+    @SuppressWarnings("PMD.ExcessiveParameterList")
+    public WidgetFactory(Activity activity,
+                         boolean readOnlyOverride,
+                         boolean useExternalRecorder,
+                         WaitingForDataRegistry waitingForDataRegistry,
+                         QuestionMediaManager questionMediaManager,
+                         AudioPlayer audioPlayer,
+                         ActivityAvailability activityAvailability,
+                         RecordingRequesterProvider recordingRequesterProvider,
+                         FormEntryViewModel formEntryViewModel,
+                         AudioRecorder audioRecorder,
+                         LifecycleOwner viewLifecycle) {
+        this.context = activity;
+        this.readOnlyOverride = readOnlyOverride;
+        this.useExternalRecorder = useExternalRecorder;
+        this.waitingForDataRegistry = waitingForDataRegistry;
+        this.questionMediaManager = questionMediaManager;
+        this.audioPlayer = audioPlayer;
+        this.activityAvailability = activityAvailability;
+        this.recordingRequesterProvider = recordingRequesterProvider;
+        this.formEntryViewModel = formEntryViewModel;
+        this.audioRecorder = audioRecorder;
+        this.viewLifecycle = viewLifecycle;
     }
 
-    /**
-     * Returns the appropriate QuestionWidget for the given FormEntryPrompt.
-     *
-     * @param fep              prompt element to be rendered
-     * @param context          Android context
-     * @param readOnlyOverride a flag to be ORed with JR readonly attribute.
-     */
-    public static QuestionWidget createWidgetFromPrompt(FormEntryPrompt fep, Context context,
-                                                        boolean readOnlyOverride) {
-
-        // get appearance hint and clean it up so it is lower case and never null...
-        String appearance = fep.getAppearanceHint();
-        if (appearance == null) {
-            appearance = "";
-        }
-        // for now, all appearance tags are in english...
-        appearance = appearance.toLowerCase(Locale.ENGLISH);
+    public QuestionWidget createWidgetFromPrompt(FormEntryPrompt prompt, PermissionsProvider permissionsProvider) {
+        String appearance = Appearances.getSanitizedAppearanceHint(prompt);
+        QuestionDetails questionDetails = new QuestionDetails(prompt, Collect.getCurrentFormIdentifierHash(), readOnlyOverride);
 
         final QuestionWidget questionWidget;
-        switch (fep.getControlType()) {
+        switch (prompt.getControlType()) {
             case Constants.CONTROL_INPUT:
-                switch (fep.getDataType()) {
+                switch (prompt.getDataType()) {
                     case Constants.DATATYPE_DATE_TIME:
-                        questionWidget = new DateTimeWidget(context, fep);
+                        questionWidget = new DateTimeWidget(context, questionDetails, new DateTimeWidgetUtils());
                         break;
                     case Constants.DATATYPE_DATE:
-                        if (appearance.contains("ethiopian")) {
-                            questionWidget = new EthiopianDateWidget(context, fep);
-                        } else if (appearance.contains("coptic")) {
-                            questionWidget = new CopticDateWidget(context, fep);
-                        } else if (appearance.contains("islamic")) {
-                            questionWidget = new IslamicDateWidget(context, fep);
-                        } else {
-                            questionWidget = new DateWidget(context, fep);
-                        }
+                        questionWidget = new DateWidget(context, questionDetails, new DateTimeWidgetUtils());
                         break;
                     case Constants.DATATYPE_TIME:
-                        questionWidget = new TimeWidget(context, fep);
+                        questionWidget = new TimeWidget(context, questionDetails, new DateTimeWidgetUtils());
                         break;
                     case Constants.DATATYPE_DECIMAL:
-                        if (appearance.startsWith("ex:")) {
-                            questionWidget = new ExDecimalWidget(context, fep);
-                        } else if (appearance.equals("bearing")) {
-                            questionWidget = new BearingWidget(context, fep);
+                        if (appearance.startsWith(Appearances.EX)) {
+                            questionWidget = new ExDecimalWidget(context, questionDetails, waitingForDataRegistry);
+                        } else if (appearance.equals(Appearances.BEARING)) {
+                            questionWidget = new BearingWidget(context, questionDetails, waitingForDataRegistry,
+                                    (SensorManager) context.getSystemService(Context.SENSOR_SERVICE));
                         } else {
-                            boolean useThousandSeparator = false;
-                            if (appearance.contains("thousands-sep")) {
-                                useThousandSeparator = true;
-                            }
-                            questionWidget = new DecimalWidget(context, fep, readOnlyOverride,
-                                    useThousandSeparator);
+                            questionWidget = new DecimalWidget(context, questionDetails);
                         }
                         break;
                     case Constants.DATATYPE_INTEGER:
-                        if (appearance.startsWith("ex:")) {
-                            questionWidget = new ExIntegerWidget(context, fep);
+                        if (appearance.startsWith(Appearances.EX)) {
+                            questionWidget = new ExIntegerWidget(context, questionDetails, waitingForDataRegistry);
                         } else {
-                            boolean useThousandSeparator = false;
-                            if (appearance.contains("thousands-sep")) {
-                                useThousandSeparator = true;
-                            }
-                            questionWidget = new IntegerWidget(context, fep, readOnlyOverride,
-                                    useThousandSeparator);
+                            questionWidget = new IntegerWidget(context, questionDetails);
                         }
                         break;
                     case Constants.DATATYPE_GEOPOINT:
-                        questionWidget = new GeoPointWidget(context, fep);
-                        break;
-                    case Constants.DATATYPE_GEOSHAPE:
-                        questionWidget = new GeoShapeWidget(context, fep);
-                        break;
-                    case Constants.DATATYPE_GEOTRACE:
-                        questionWidget = new GeoTraceWidget(context, fep);
-                        break;
-                    case Constants.DATATYPE_BARCODE:
-                        questionWidget = new BarcodeWidget(context, fep);
-                        break;
-                    case Constants.DATATYPE_TEXT:
-                        String query = fep.getQuestion().getAdditionalAttribute(null, "query");
-                        if (query != null) {
-                            questionWidget = new ItemsetWidget(context, fep, appearance.startsWith("quick"));
-                        } else if (appearance.startsWith("printer")) {
-                            questionWidget = new ExPrinterWidget(context, fep);
-                        } else if (appearance.startsWith("ex:")) {
-                            questionWidget = new ExStringWidget(context, fep);
-                        } else if (appearance.contains("numbers")) {
-                            boolean useThousandsSeparator = false;
-                            if (appearance.contains("thousands-sep")) {
-                                useThousandsSeparator = true;
-                            }
-                            questionWidget = new StringNumberWidget(context, fep, readOnlyOverride,
-                                    useThousandsSeparator);
-                        } else if (appearance.equals("url")) {
-                            questionWidget = new UrlWidget(context, fep);
+                        if (hasAppearance(questionDetails.getPrompt(), PLACEMENT_MAP) || hasAppearance(questionDetails.getPrompt(), MAPS)) {
+                            questionWidget = new GeoPointMapWidget(context, questionDetails, waitingForDataRegistry,
+                                    new ActivityGeoDataRequester(permissionsProvider));
                         } else {
-                            questionWidget = new StringWidget(context, fep, readOnlyOverride);
+                            questionWidget = new GeoPointWidget(context, questionDetails, waitingForDataRegistry,
+                                    new ActivityGeoDataRequester(permissionsProvider));
                         }
                         break;
-                    case Constants.DATATYPE_BOOLEAN:
-                        questionWidget = new BooleanWidget(context, fep);
+                    case Constants.DATATYPE_GEOSHAPE:
+                        questionWidget = new GeoShapeWidget(context, questionDetails, waitingForDataRegistry,
+                                new ActivityGeoDataRequester(permissionsProvider));
+                        break;
+                    case Constants.DATATYPE_GEOTRACE:
+                        questionWidget = new GeoTraceWidget(context, questionDetails, waitingForDataRegistry,
+                                MapProvider.getConfigurator(), new ActivityGeoDataRequester(permissionsProvider));
+                        break;
+                    case Constants.DATATYPE_BARCODE:
+                        questionWidget = new BarcodeWidget(context, questionDetails, waitingForDataRegistry, new CameraUtils());
+                        break;
+                    case Constants.DATATYPE_TEXT:
+                        String query = prompt.getQuestion().getAdditionalAttribute(null, "query");
+                        if (query != null) {
+                            questionWidget = getSelectOneWidget(appearance, questionDetails);
+                        } else if (appearance.startsWith(Appearances.PRINTER)) {
+                            questionWidget = new ExPrinterWidget(context, questionDetails, waitingForDataRegistry);
+                        } else if (appearance.startsWith(Appearances.EX)) {
+                            questionWidget = new ExStringWidget(context, questionDetails, waitingForDataRegistry);
+                        } else if (appearance.contains(Appearances.NUMBERS)) {
+                            questionWidget = new StringNumberWidget(context, questionDetails);
+                        } else if (appearance.equals(Appearances.URL)) {
+                            questionWidget = new UrlWidget(context, questionDetails, new ExternalWebPageHelper());
+                        } else {
+                            questionWidget = new StringWidget(context, questionDetails);
+                        }
                         break;
                     default:
-                        questionWidget = new StringWidget(context, fep, readOnlyOverride);
+                        questionWidget = new StringWidget(context, questionDetails);
                         break;
                 }
                 break;
             case Constants.CONTROL_FILE_CAPTURE:
-                questionWidget = new ArbitraryFileWidget(context, fep);
+                if (appearance.startsWith(Appearances.EX)) {
+                    questionWidget = new ExArbitraryFileWidget(context, questionDetails, new MediaUtils(), questionMediaManager, waitingForDataRegistry, new ExternalAppIntentProvider(), activityAvailability);
+                } else {
+                    questionWidget = new ArbitraryFileWidget(context, questionDetails, new MediaUtils(), questionMediaManager, waitingForDataRegistry);
+                }
                 break;
             case Constants.CONTROL_IMAGE_CHOOSE:
-                if (appearance.equals("web")) {
-                    questionWidget = new ImageWebViewWidget(context, fep);
-                } else if (appearance.equals("signature")) {
-                    questionWidget = new SignatureWidget(context, fep);
-                } else if (appearance.contains("annotate")) {
-                    questionWidget = new AnnotateWidget(context, fep);
-                } else if (appearance.equals("draw")) {
-                    questionWidget = new DrawWidget(context, fep);
-                } else if (appearance.startsWith("align:")) {
-                    questionWidget = new AlignedImageWidget(context, fep);
+                if (appearance.equals(Appearances.SIGNATURE)) {
+                    questionWidget = new SignatureWidget(context, questionDetails, questionMediaManager, waitingForDataRegistry);
+                } else if (appearance.contains(Appearances.ANNOTATE)) {
+                    questionWidget = new AnnotateWidget(context, questionDetails, questionMediaManager, waitingForDataRegistry);
+                } else if (appearance.equals(Appearances.DRAW)) {
+                    questionWidget = new DrawWidget(context, questionDetails, questionMediaManager, waitingForDataRegistry);
+                } else if (appearance.startsWith(Appearances.EX)) {
+                    questionWidget = new ExImageWidget(context, questionDetails, questionMediaManager, waitingForDataRegistry, new MediaUtils(), new ExternalAppIntentProvider(), activityAvailability);
                 } else {
-                    questionWidget = new ImageWidget(context, fep);
+                    questionWidget = new ImageWidget(context, questionDetails, questionMediaManager, waitingForDataRegistry);
                 }
                 break;
             case Constants.CONTROL_OSM_CAPTURE:
-                questionWidget = new OSMWidget(context, fep);
+                questionWidget = new OSMWidget(context, questionDetails, waitingForDataRegistry);
                 break;
             case Constants.CONTROL_AUDIO_CAPTURE:
-                questionWidget = new AudioWidget(context, fep);
+                RecordingRequester recordingRequester = recordingRequesterProvider.create(prompt, useExternalRecorder);
+                GetContentAudioFileRequester audioFileRequester = new GetContentAudioFileRequester(context, activityAvailability, waitingForDataRegistry, formEntryViewModel);
+
+                if (appearance.startsWith(Appearances.EX)) {
+                    questionWidget = new ExAudioWidget(context, questionDetails, questionMediaManager, audioPlayer, waitingForDataRegistry, new MediaUtils(), new ExternalAppIntentProvider(), activityAvailability);
+                } else {
+                    questionWidget = new AudioWidget(context, questionDetails, questionMediaManager, audioPlayer, recordingRequester, audioFileRequester, new AudioRecorderRecordingStatusHandler(audioRecorder, formEntryViewModel, viewLifecycle));
+                }
                 break;
             case Constants.CONTROL_VIDEO_CAPTURE:
-                questionWidget = new VideoWidget(context, fep);
+                if (appearance.startsWith(Appearances.EX)) {
+                    questionWidget = new ExVideoWidget(context, questionDetails, questionMediaManager, waitingForDataRegistry, new MediaUtils(), new ExternalAppIntentProvider(), activityAvailability);
+                } else {
+                    questionWidget = new VideoWidget(context, questionDetails, questionMediaManager, waitingForDataRegistry);
+                }
                 break;
             case Constants.CONTROL_SELECT_ONE:
-                // search() appearance/function (not part of XForms spec) added by SurveyCTO gets
-                // considered in each widget by calls to ExternalDataUtil.getSearchXPathExpression.
-                // This means normal appearances should be put before search().
-                if (appearance.startsWith("compact") || appearance.startsWith("quickcompact")) {
-                    int numColumns = -1;
-                    try {
-                        String firstWord = appearance.split("\\s+")[0];
-                        int idx = firstWord.indexOf('-');
-                        if (idx != -1) {
-                            numColumns = Integer.parseInt(firstWord.substring(idx + 1));
-                        }
-                    } catch (Exception e) {
-                        // Do nothing, leave numColumns as -1
-                        Timber.e("Exception parsing numColumns");
-                    }
-                    questionWidget = new GridWidget(context, fep, numColumns, appearance.contains("quick"));
-                } else if (appearance.contains("minimal")) {
-                    questionWidget = new SpinnerWidget(context, fep, appearance.contains("quick"));
-                } else if (appearance.contains("search") || appearance.contains("autocomplete")) {
-                    questionWidget = new SelectOneSearchWidget(context, fep, appearance.contains("quick"));
-                } else if (appearance.contains("list-nolabel")) {
-                    questionWidget = new ListWidget(context, fep, false, appearance.contains("quick"));
-                } else if (appearance.contains("list")) {
-                    questionWidget = new ListWidget(context, fep, true, appearance.contains("quick"));
-                } else if (appearance.equals("label")) {
-                    questionWidget = new LabelWidget(context, fep);
-                } else if (appearance.contains("image-map")) {
-                    questionWidget = new SelectOneImageMapWidget(context, fep, appearance.contains("quick"));
-                } else {
-                    questionWidget = new SelectOneWidget(context, fep, appearance.contains("quick"));
-                }
-
-                logChoiceFilterAnalytics(fep.getQuestion());
-
+                questionWidget = getSelectOneWidget(appearance, questionDetails);
                 break;
             case Constants.CONTROL_SELECT_MULTI:
                 // search() appearance/function (not part of XForms spec) added by SurveyCTO gets
                 // considered in each widget by calls to ExternalDataUtil.getSearchXPathExpression.
-                // This means normal appearances should be put before search().
-                if (appearance.startsWith("compact")) {
-                    int numColumns = -1;
-                    try {
-                        String firstWord = appearance.split("\\s+")[0];
-                        int idx = firstWord.indexOf('-');
-                        if (idx != -1) {
-                            numColumns =
-                                    Integer.parseInt(firstWord.substring(idx + 1));
-                        }
-                    } catch (Exception e) {
-                        // Do nothing, leave numColumns as -1
-                        Timber.e("Exception parsing numColumns");
-                    }
-
-                    questionWidget = new GridMultiWidget(context, fep, numColumns);
-                } else if (appearance.startsWith("minimal")) {
-                    questionWidget = new SpinnerMultiWidget(context, fep);
-                } else if (appearance.startsWith("list-nolabel")) {
-                    questionWidget = new ListMultiWidget(context, fep, false);
-                } else if (appearance.startsWith("list")) {
-                    questionWidget = new ListMultiWidget(context, fep, true);
-                } else if (appearance.startsWith("label")) {
-                    questionWidget = new LabelWidget(context, fep);
-                } else if (appearance.contains("autocomplete")) {
-                    questionWidget = new SelectMultipleAutocompleteWidget(context, fep);
-                } else if (appearance.startsWith("image-map")) {
-                    questionWidget = new SelectMultiImageMapWidget(context, fep);
+                if (appearance.contains(Appearances.MINIMAL)) {
+                    questionWidget = new SelectMultiMinimalWidget(context, questionDetails, waitingForDataRegistry);
+                } else if (appearance.contains(Appearances.LIST_NO_LABEL)) {
+                    questionWidget = new ListMultiWidget(context, questionDetails, false);
+                } else if (appearance.contains(Appearances.LIST)) {
+                    questionWidget = new ListMultiWidget(context, questionDetails, true);
+                } else if (appearance.contains(Appearances.LABEL)) {
+                    questionWidget = new LabelWidget(context, questionDetails);
+                } else if (appearance.contains(Appearances.IMAGE_MAP)) {
+                    questionWidget = new SelectMultiImageMapWidget(context, questionDetails);
                 } else {
-                    questionWidget = new SelectMultiWidget(context, fep);
+                    questionWidget = new SelectMultiWidget(context, questionDetails);
                 }
                 break;
             case Constants.CONTROL_RANK:
-                questionWidget = new RankingWidget(context, fep);
+                questionWidget = new RankingWidget(context, questionDetails);
                 break;
             case Constants.CONTROL_TRIGGER:
-                questionWidget = new TriggerWidget(context, fep);
+                questionWidget = new TriggerWidget(context, questionDetails);
                 break;
             case Constants.CONTROL_RANGE:
-                switch (fep.getDataType()) {
-                    case Constants.DATATYPE_INTEGER:
-                        questionWidget = new RangeIntegerWidget(context, fep);
-                        break;
-                    case Constants.DATATYPE_DECIMAL:
-                        questionWidget = new RangeDecimalWidget(context, fep);
-                        break;
-                    default:
-                        questionWidget = new StringWidget(context, fep, readOnlyOverride);
-                        break;
+                if (appearance.startsWith(Appearances.RATING)) {
+                    questionWidget = new RatingWidget(context, questionDetails);
+                } else {
+                    switch (prompt.getDataType()) {
+                        case Constants.DATATYPE_INTEGER:
+                            if (prompt.getQuestion().getAppearanceAttr() != null && prompt.getQuestion().getAppearanceAttr().contains(PICKER_APPEARANCE)) {
+                                questionWidget = new RangePickerIntegerWidget(context, questionDetails);
+                            } else {
+                                questionWidget = new RangeIntegerWidget(context, questionDetails);
+                            }
+                            break;
+                        case Constants.DATATYPE_DECIMAL:
+                            if (prompt.getQuestion().getAppearanceAttr() != null && prompt.getQuestion().getAppearanceAttr().contains(PICKER_APPEARANCE)) {
+                                questionWidget = new RangePickerDecimalWidget(context, questionDetails);
+                            } else {
+                                questionWidget = new RangeDecimalWidget(context, questionDetails);
+                            }
+                            break;
+                        default:
+                            questionWidget = new StringWidget(context, questionDetails);
+                            break;
+                    }
                 }
-
-                logChoiceFilterAnalytics(fep.getQuestion());
-
                 break;
             default:
-                questionWidget = new StringWidget(context, fep, readOnlyOverride);
+                questionWidget = new StringWidget(context, questionDetails);
                 break;
         }
+
         return questionWidget;
     }
 
-    /**
-     * Log analytics event each time a question with a choice filter is accessed, identifying
-     * choice filters with relative expressions. This will inform communication around the fix
-     * for a long-standing bug in JavaRosa: https://github.com/opendatakit/javarosa/issues/293
-     */
-    private static void logChoiceFilterAnalytics(QuestionDef question) {
-        ItemsetBinding itemsetBinding = question.getDynamicChoices();
-
-        if (itemsetBinding != null && itemsetBinding.nodesetRef != null) {
-            if (itemsetBinding.nodesetRef.hasPredicates()) {
-                for (int level = 0; level < itemsetBinding.nodesetRef.size(); level++) {
-                    List<XPathExpression> predicates = itemsetBinding.nodesetRef.getPredicate(level);
-
-                    if (predicates != null) {
-                        // Log a hash of the form title and id joined by a space. This
-                        // will allow us to know a rough count of unique forms that use
-                        // current() in a predicate without compromising user privacy.
-                        String formIdentifier = "";
-                        FormController formController = Collect.getInstance().getFormController();
-                        if (formController != null) {
-                            String formID = formController.getFormDef().getMainInstance()
-                                    .getRoot().getAttributeValue("", "id");
-                            formIdentifier = formController.getFormTitle() + " " + formID;
-                        }
-
-                        String formIdentifierHash = FileUtils.getMd5Hash(
-                                new ByteArrayInputStream(formIdentifier.getBytes()));
-
-                        for (XPathExpression predicate : predicates) {
-                            String actionName = predicate.toString().contains("current") ?
-                                    "CurrentPredicate" : "NonCurrentPredicate";
-
-                            Collect.getInstance().getDefaultTracker()
-                                    .send(new HitBuilders.EventBuilder()
-                                    .setCategory("Itemset")
-                                    .setAction(actionName)
-                                    .setLabel(formIdentifierHash)
-                                    .build());
-                        }
-                    }
-                }
-            }
+    private QuestionWidget getSelectOneWidget(String appearance, QuestionDetails questionDetails) {
+        final QuestionWidget questionWidget;
+        boolean isQuick = appearance.contains(Appearances.QUICK);
+        // search() appearance/function (not part of XForms spec) added by SurveyCTO gets
+        // considered in each widget by calls to ExternalDataUtil.getSearchXPathExpression.
+        if (appearance.contains(Appearances.MINIMAL)) {
+            questionWidget = new SelectOneMinimalWidget(context, questionDetails, isQuick, waitingForDataRegistry);
+        } else if (appearance.contains(Appearances.LIKERT)) {
+            questionWidget = new LikertWidget(context, questionDetails);
+        } else if (appearance.contains(Appearances.LIST_NO_LABEL)) {
+            questionWidget = new ListWidget(context, questionDetails, false, isQuick);
+        } else if (appearance.contains(Appearances.LIST)) {
+            questionWidget = new ListWidget(context, questionDetails, true, isQuick);
+        } else if (appearance.contains(Appearances.LABEL)) {
+            questionWidget = new LabelWidget(context, questionDetails);
+        } else if (appearance.contains(Appearances.IMAGE_MAP)) {
+            questionWidget = new SelectOneImageMapWidget(context, questionDetails, isQuick);
+        } else {
+            questionWidget = new SelectOneWidget(context, questionDetails, isQuick);
         }
+        return questionWidget;
     }
 
 }

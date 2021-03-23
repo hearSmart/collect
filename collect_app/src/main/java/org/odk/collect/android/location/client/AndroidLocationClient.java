@@ -1,13 +1,17 @@
 package org.odk.collect.android.location.client;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 
 import com.google.android.gms.location.LocationListener;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import org.odk.collect.android.utilities.GeoUtils;
 
 import timber.log.Timber;
 
@@ -18,15 +22,12 @@ import timber.log.Timber;
  * <p>
  * Should be used whenever there Google Play Services is not present.
  * <p>
- * Package-private, use {@link LocationClients} to retrieve the correct
+ * Package-private, use {@link LocationClientProvider} to retrieve the correct
  * {@link LocationClient}.
  */
 class AndroidLocationClient
         extends BaseLocationClient
         implements android.location.LocationListener {
-
-    @Nullable
-    private LocationClientListener locationClientListener;
 
     @Nullable
     private LocationListener locationListener;
@@ -58,16 +59,16 @@ class AndroidLocationClient
     @Override
     public void start() {
         if (getProvider() == null) {
-            if (locationClientListener != null) {
-                locationClientListener.onClientStartFailure();
+            if (getListener() != null) {
+                getListener().onClientStartFailure();
             }
 
             return;
         }
 
         isConnected = true;
-        if (locationClientListener != null) {
-            locationClientListener.onClientStart();
+        if (getListener() != null) {
+            getListener().onClientStart();
         }
     }
 
@@ -77,12 +78,13 @@ class AndroidLocationClient
         stopLocationUpdates();
         isConnected = false;
 
-        if (locationClientListener != null) {
-            locationClientListener.onClientStop();
+        if (getListener() != null) {
+            getListener().onClientStop();
         }
     }
 
     @Override
+    @SuppressLint("MissingPermission") // Permission checks for location services handled in widgets
     public void requestLocationUpdates(@NonNull LocationListener locationListener) {
         if (!isConnected) {
             // This is to maintain expected behavior across LocationClient implementations.
@@ -107,15 +109,11 @@ class AndroidLocationClient
     }
 
     @Override
-    public void setListener(@Nullable LocationClientListener locationClientListener) {
-        this.locationClientListener = locationClientListener;
-    }
-
-    @Override
+    @SuppressLint("MissingPermission") // Permission checks for location services handled in widgets
     public Location getLastLocation() {
         String provider = getProvider();
         if (provider != null) {
-            return getLocationManager().getLastKnownLocation(provider);
+            return GeoUtils.sanitizeAccuracy(getLocationManager().getLastKnownLocation(provider));
         }
 
         return null;
@@ -150,7 +148,7 @@ class AndroidLocationClient
         Timber.i("Location changed: %s", location.toString());
 
         if (locationListener != null) {
-            locationListener.onLocationChanged(location);
+            locationListener.onLocationChanged(GeoUtils.sanitizeAccuracy(location));
         }
     }
 

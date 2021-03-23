@@ -22,12 +22,18 @@
         <exclude name="JUnitAssertionsShouldIncludeMessage" />
         <exclude name="JUnitTestContainsTooManyAsserts" />
         <exclude name="JUnitTestsShouldIncludeAssert" />
+        <exclude name="JUnitUseExpected" /> <!-- Favor using fail explicitly to test correct exception -->
+        <exclude name="LiteralsFirstInComparisons" />
         <exclude name="LooseCoupling" />
         <exclude name="PositionLiteralsFirstInCaseInsensitiveComparisons" />
         <exclude name="PositionLiteralsFirstInComparisons" />
         <exclude name="PreserveStackTrace" />
         <exclude name="SwitchStmtsShouldHaveDefault" />
+        <exclude name="UnusedAssignment" />
         <exclude name="UseVarargs" />
+        <exclude name="UseTryWithResources" />
+        <exclude name="ForLoopVariableCount" />
+        <exclude name="AvoidReassigningLoopVariables" />
     </rule>
 
     <rule ref="category/java/codestyle.xml">
@@ -40,7 +46,6 @@
         <exclude name="CommentDefaultAccessModifier" />
         <exclude name="ConfusingTernary" />
         <exclude name="DefaultPackage" />
-        <exclude name="EmptyMethodInAbstractClassShouldBeAbstract" />
         <exclude name="FieldDeclarationsShouldBeAtStartOfClass" />
         <exclude name="LongVariable" />
         <exclude name="LocalVariableCouldBeFinal" />
@@ -53,10 +58,16 @@
         <exclude name="ShortMethodName" />
         <exclude name="ShortVariable" />
         <exclude name="TooManyStaticImports" />
+        <exclude name="FieldNamingConventions" />
+        <exclude name="LocalVariableNamingConventions" />
+        <exclude name="UseUnderscoresInNumericLiterals" />
+        <exclude name="LinguisticNaming" />
+        <exclude name="UnnecessaryFullyQualifiedName" />
         <exclude name="UselessParentheses" />               <!-- Decided not to use in #1519 -->
     </rule>
 
     <rule ref="category/java/design.xml">
+        <exclude name="AbstractClassWithoutAnyMethod" />
         <exclude name="AvoidCatchingGenericException" />
         <exclude name="AvoidDeeplyNestedIfStmts" />
         <exclude name="AvoidThrowingRawExceptionTypes" />
@@ -80,6 +91,7 @@
         <exclude name="TooManyFields" />
         <exclude name="TooManyMethods" />
         <exclude name="UseObjectForClearerAPI" />
+        <exclude name="AvoidUncheckedExceptionsInSignatures" />
     </rule>
 
     <rule ref="category/java/documentation.xml">
@@ -113,6 +125,8 @@
         <exclude name="NullAssignment" />
         <exclude name="TestClassWithoutTestCases" />
         <exclude name="UnnecessaryBooleanAssertion" />
+        <exclude name="DetachedTestCase" />
+        <exclude name="CloseResource" />
     </rule>
 
     <rule ref="category/java/multithreading.xml">
@@ -129,7 +143,7 @@
         <exclude name="InsufficientStringBufferDeclaration" />
         <exclude name="OptimizableToArrayCall" />
         <exclude name="SimplifyStartsWith" />
-        <exclude name="TooFewBranchesForASwitchStatement" />
+        <exclude name="TooFewBranchesForASwitchStatement" /> <!-- Decided not to use in #2564 -->
         <exclude name="UseStringBufferForStringAppends" />
     </rule>
 </ruleset>

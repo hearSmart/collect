@@ -19,6 +19,7 @@
 package org.odk.collect.android.external;
 
 import android.widget.Toast;
+
 import org.javarosa.core.model.SelectChoice;
 import org.javarosa.core.model.condition.EvaluationContext;
 import org.javarosa.core.model.instance.FormInstance;
@@ -32,7 +33,11 @@ import org.odk.collect.android.R;
 import org.odk.collect.android.application.Collect;
 import org.odk.collect.android.exception.ExternalDataException;
 import org.odk.collect.android.external.handler.ExternalDataHandlerSearch;
+import org.odk.collect.android.javarosawrapper.FormController;
+import org.odk.collect.android.utilities.TranslationHandler;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -54,9 +59,12 @@ import timber.log.Timber;
 public final class ExternalDataUtil {
 
     public static final String EXTERNAL_DATA_TABLE_NAME = "externalData";
+    public static final String EXTERNAL_METADATA_TABLE_NAME = "externalMetadata";
     public static final String SORT_COLUMN_NAME = "c_sortby";
+    public static final String COLUMN_DATASET_FILENAME = "dataSetFilename";
+    public static final String COLUMN_MD5_HASH = "md5Hash";
 
-    private static final Pattern SEARCH_FUNCTION_REGEX = Pattern.compile("search\\(.+\\)");
+    public static final Pattern SEARCH_FUNCTION_REGEX = Pattern.compile("search\\(.+\\)");
     private static final String COLUMN_SEPARATOR = ",";
     private static final String FALLBACK_COLUMN_SEPARATOR = " ";
     public static final String JR_IMAGES_PREFIX = "jr://images/";
@@ -85,7 +93,7 @@ public final class ExternalDataUtil {
 
     public static List<String> findMatchingColumnsAfterSafeningNames(String[] columnNames) {
         // key is the safe, value is the unsafe
-        Map<String, String> map = new HashMap<String, String>();
+        Map<String, String> map = new HashMap<>();
         for (String columnName : columnNames) {
             if (columnName.trim().length() > 0) {
                 String safeColumn = toSafeColumnName(columnName);
@@ -107,6 +115,7 @@ public final class ExternalDataUtil {
 
         Matcher matcher = SEARCH_FUNCTION_REGEX.matcher(appearance);
         if (matcher.find()) {
+
             String function = matcher.group(0);
             try {
                 XPathExpression xpathExpression = XPathParseTool.parseXPath(function);
@@ -120,32 +129,32 @@ public final class ExternalDataUtil {
                             return xpathFuncExpr;
                         } else {
                             Toast.makeText(Collect.getInstance(),
-                                    Collect.getInstance().getString(R.string.ext_search_wrong_arguments_error),
+                                    TranslationHandler.getString(Collect.getInstance(), R.string.ext_search_wrong_arguments_error),
                                     Toast.LENGTH_SHORT).show();
-                            Timber.i(Collect.getInstance().getString(R.string.ext_search_wrong_arguments_error));
+                            Timber.i(TranslationHandler.getString(Collect.getInstance(), R.string.ext_search_wrong_arguments_error));
                             return null;
                         }
                     } else {
                         // this might mean a problem in the regex above. Unit tests required.
                         Toast.makeText(Collect.getInstance(),
-                                Collect.getInstance().getString(R.string.ext_search_wrong_function_error, xpathFuncExpr.id.name),
+                                TranslationHandler.getString(Collect.getInstance(), R.string.ext_search_wrong_function_error, xpathFuncExpr.id.name),
                                 Toast.LENGTH_SHORT).show();
-                        Timber.i(Collect.getInstance().getString(R.string.ext_search_wrong_function_error, xpathFuncExpr.id.name));
+                        Timber.i(TranslationHandler.getString(Collect.getInstance(), R.string.ext_search_wrong_function_error, xpathFuncExpr.id.name));
                         return null;
                     }
                 } else {
                     // this might mean a problem in the regex above. Unit tests required.
                     Toast.makeText(Collect.getInstance(),
-                            Collect.getInstance().getString(R.string.ext_search_bad_function_error, function),
+                            TranslationHandler.getString(Collect.getInstance(), R.string.ext_search_bad_function_error, function),
                             Toast.LENGTH_SHORT).show();
-                    Timber.i(Collect.getInstance().getString(R.string.ext_search_bad_function_error, function));
+                    Timber.i(TranslationHandler.getString(Collect.getInstance(), R.string.ext_search_bad_function_error, function));
                     return null;
                 }
             } catch (XPathSyntaxException e) {
                 Toast.makeText(Collect.getInstance(),
-                        Collect.getInstance().getString(R.string.ext_search_generic_error, appearance),
+                        TranslationHandler.getString(Collect.getInstance(), R.string.ext_search_generic_error, appearance),
                         Toast.LENGTH_SHORT).show();
-                Timber.i(Collect.getInstance().getString(R.string.ext_search_generic_error, appearance));
+                Timber.i(TranslationHandler.getString(Collect.getInstance(), R.string.ext_search_generic_error, appearance));
                 return null;
             }
         } else {
@@ -154,10 +163,10 @@ public final class ExternalDataUtil {
     }
 
     public static ArrayList<SelectChoice> populateExternalChoices(FormEntryPrompt formEntryPrompt,
-            XPathFuncExpr xpathfuncexpr) {
+            XPathFuncExpr xpathfuncexpr) throws FileNotFoundException {
         try {
             List<SelectChoice> selectChoices = formEntryPrompt.getSelectChoices();
-            ArrayList<SelectChoice> returnedChoices = new ArrayList<SelectChoice>();
+            ArrayList<SelectChoice> returnedChoices = new ArrayList<>();
             for (SelectChoice selectChoice : selectChoices) {
                 String value = selectChoice.getValue();
                 if (isAnInteger(value)) {
@@ -196,13 +205,26 @@ public final class ExternalDataUtil {
                         }
                     } else {
                         throw new ExternalDataException(
-                                Collect.getInstance().getString(R.string.ext_search_return_error,
+                                TranslationHandler.getString(Collect.getInstance(), R.string.ext_search_return_error,
                                         eval.getClass().getName()));
                     }
                 }
             }
             return returnedChoices;
         } catch (Exception e) {
+            String fileName = String.valueOf(xpathfuncexpr.args[0].eval(null, null));
+            if (!fileName.endsWith(".csv")) {
+                fileName = fileName + ".csv";
+            }
+            FormController formController = Collect.getInstance().getFormController();
+            String filePath = fileName;
+            if (formController != null) {
+                filePath = Collect.getInstance().getFormController().getMediaFolder() + File.separator + fileName;
+            }
+            if (!new File(filePath).exists()) {
+                throw new FileNotFoundException(filePath);
+            }
+
             throw new ExternalDataException(e.getMessage(), e);
         }
     }
@@ -222,7 +244,7 @@ public final class ExternalDataUtil {
             String displayColumns) {
         valueColumn = valueColumn.trim();
 
-        LinkedHashMap<String, String> columns = new LinkedHashMap<String, String>();
+        LinkedHashMap<String, String> columns = new LinkedHashMap<>();
 
         columns.put(toSafeColumnName(valueColumn), valueColumn);
 
@@ -241,7 +263,7 @@ public final class ExternalDataUtil {
     }
 
     public static List<String> createListOfColumns(String columnString) {
-        List<String> values = new ArrayList<String>();
+        List<String> values = new ArrayList<>();
 
         List<String> commaSplitParts = splitTrimmed(columnString, COLUMN_SEPARATOR,
                 FALLBACK_COLUMN_SEPARATOR);
@@ -265,7 +287,7 @@ public final class ExternalDataUtil {
     }
 
     protected static List<String> splitTrimmed(String text, String separator) {
-        List<String> parts = new ArrayList<String>();
+        List<String> parts = new ArrayList<>();
         StringTokenizer st = new StringTokenizer(text, separator);
         while (st.hasMoreTokens()) {
             String token = st.nextToken().trim();

@@ -14,27 +14,29 @@
 
 package org.odk.collect.android.logic;
 
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
-import android.preference.PreferenceManager;
-import android.provider.Settings;
-import android.telephony.TelephonyManager;
-
 import org.javarosa.core.services.IPropertyManager;
 import org.javarosa.core.services.properties.IPropertyRules;
+import org.odk.collect.android.application.Collect;
+import org.odk.collect.android.events.ReadPhoneStatePermissionRxEvent;
+import org.odk.collect.android.events.RxEventBus;
+import org.odk.collect.android.permissions.PermissionsProvider;
+import org.odk.collect.android.preferences.source.Settings;
+import org.odk.collect.android.preferences.source.SettingsProvider;
+import org.odk.collect.android.utilities.DeviceDetailsProvider;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import javax.inject.Inject;
+
 import timber.log.Timber;
 
-import static org.odk.collect.android.preferences.PreferenceKeys.KEY_METADATA_EMAIL;
-import static org.odk.collect.android.preferences.PreferenceKeys.KEY_METADATA_PHONENUMBER;
-import static org.odk.collect.android.preferences.PreferenceKeys.KEY_METADATA_USERNAME;
+import static org.odk.collect.android.preferences.keys.GeneralKeys.KEY_METADATA_EMAIL;
+import static org.odk.collect.android.preferences.keys.GeneralKeys.KEY_METADATA_PHONENUMBER;
+import static org.odk.collect.android.preferences.keys.GeneralKeys.KEY_METADATA_USERNAME;
+import static org.odk.collect.android.preferences.keys.GeneralKeys.KEY_USERNAME;
 
 /**
  * Returns device properties and metadata to JavaRosa
@@ -44,106 +46,77 @@ import static org.odk.collect.android.preferences.PreferenceKeys.KEY_METADATA_US
 public class PropertyManager implements IPropertyManager {
 
     public static final String PROPMGR_DEVICE_ID        = "deviceid";
-    public static final String PROPMGR_SUBSCRIBER_ID    = "subscriberid";
-    public static final String PROPMGR_SIM_SERIAL       = "simserial";
     public static final String PROPMGR_PHONE_NUMBER     = "phonenumber";
     public static final String PROPMGR_USERNAME         = "username";
     public static final String PROPMGR_EMAIL            = "email";
 
-    private static final String ANDROID6_FAKE_MAC = "02:00:00:00:00:00";
-
     public static final String SCHEME_USERNAME     = "username";
     private static final String SCHEME_TEL          = "tel";
     private static final String SCHEME_MAILTO       = "mailto";
-    private static final String SCHEME_IMSI         = "imsi";
-    private static final String SCHEME_SIMSERIAL    = "simserial";
-    private static final String SCHEME_IMEI         = "imei";
-    private static final String SCHEME_MAC          = "mac";
 
     private final Map<String, String> properties = new HashMap<>();
+
+    @Inject
+    RxEventBus eventBus;
+
+    @Inject
+    DeviceDetailsProvider deviceDetailsProvider;
+
+    @Inject
+    PermissionsProvider permissionsProvider;
+
+    @Inject
+    SettingsProvider settingsProvider;
 
     public String getName() {
         return "Property Manager";
     }
 
-    private static class IdAndPrefix {
-        String id;
-        String prefix;
+    public PropertyManager() {
+        Collect.getInstance().getComponent().inject(this);
 
-        IdAndPrefix(String id, String prefix) {
-            this.id = id;
-            this.prefix = prefix;
-        }
+        reload();
     }
 
-    public PropertyManager(Context context) {
-        Timber.i("calling constructor");
+    public PropertyManager(RxEventBus rxEventBus, PermissionsProvider permissionsProvider, DeviceDetailsProvider deviceDetailsProvider, SettingsProvider settingsProvider) {
+        this.eventBus = rxEventBus;
+        this.permissionsProvider = permissionsProvider;
+        this.deviceDetailsProvider = deviceDetailsProvider;
+        this.settingsProvider = settingsProvider;
+    }
 
+    public PropertyManager reload() {
         try {
-            // Device-defined properties
-            TelephonyManager telMgr = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-            IdAndPrefix idp = findDeviceId(context, telMgr);
-            putProperty(PROPMGR_DEVICE_ID,     idp.prefix,          idp.id);
-            putProperty(PROPMGR_PHONE_NUMBER,  SCHEME_TEL,          telMgr.getLine1Number());
-            putProperty(PROPMGR_SUBSCRIBER_ID, SCHEME_IMSI,         telMgr.getSubscriberId());
-            putProperty(PROPMGR_SIM_SERIAL,    SCHEME_SIMSERIAL,    telMgr.getSimSerialNumber());
-
-            // User-defined properties. Will replace any above with the same PROPMGR_ name.
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-            initUserDefined(prefs, KEY_METADATA_USERNAME,    PROPMGR_USERNAME,      SCHEME_USERNAME);
-            initUserDefined(prefs, KEY_METADATA_PHONENUMBER, PROPMGR_PHONE_NUMBER,  SCHEME_TEL);
-            initUserDefined(prefs, KEY_METADATA_EMAIL,       PROPMGR_EMAIL,         SCHEME_MAILTO);
+            putProperty(PROPMGR_DEVICE_ID,     "",         deviceDetailsProvider.getDeviceId());
+            putProperty(PROPMGR_PHONE_NUMBER,  SCHEME_TEL,          deviceDetailsProvider.getLine1Number());
         } catch (SecurityException e) {
-            Timber.e(e);
-        }
-    }
-
-    private IdAndPrefix findDeviceId(Context context, TelephonyManager telephonyManager) {
-        final String androidIdName = Settings.Secure.ANDROID_ID;
-        String deviceId = telephonyManager.getDeviceId();
-        String scheme = null;
-
-        if (deviceId != null) {
-            if (deviceId.contains("*") || deviceId.contains("000000000000000")) {
-                deviceId = Settings.Secure.getString(context.getContentResolver(), androidIdName);
-                scheme = androidIdName;
-            } else {
-                scheme = SCHEME_IMEI;
-            }
+            Timber.i(e);
         }
 
-        if (deviceId == null) {
-            // no SIM -- WiFi only
-            // Retrieve WiFiManager
-            WifiManager wifi = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        // User-defined properties. Will replace any above with the same PROPMGR_ name.
+        Settings generalSettings = settingsProvider.getGeneralSettings();
+        initUserDefined(generalSettings, KEY_METADATA_USERNAME,    PROPMGR_USERNAME,      SCHEME_USERNAME);
+        initUserDefined(generalSettings, KEY_METADATA_PHONENUMBER, PROPMGR_PHONE_NUMBER,  SCHEME_TEL);
+        initUserDefined(generalSettings, KEY_METADATA_EMAIL,       PROPMGR_EMAIL,         SCHEME_MAILTO);
 
-            // Get WiFi status
-            WifiInfo info = wifi.getConnectionInfo();
-            if (info != null && !ANDROID6_FAKE_MAC.equals(info.getMacAddress())) {
-                deviceId = info.getMacAddress();
-                scheme = SCHEME_MAC;
-            }
+        // Use the server username by default if the metadata username is not defined
+        if (getSingularProperty(PROPMGR_USERNAME) == null || getSingularProperty(PROPMGR_USERNAME).isEmpty()) {
+            putProperty(PROPMGR_USERNAME, SCHEME_USERNAME, settingsProvider.getGeneralSettings().getString(KEY_USERNAME));
         }
 
-        // if it is still null, use ANDROID_ID
-        if (deviceId == null) {
-            deviceId = Settings.Secure.getString(context.getContentResolver(), androidIdName);
-            scheme = androidIdName;
-        }
-
-        return new IdAndPrefix(deviceId, scheme);
+        return this;
     }
 
     /**
      * Initializes a property and its associated “with URI” property, from shared preferences.
-     * @param preferences the shared preferences object to be used
+     * @param generalSettings the preferences object to be used
      * @param prefKey the preferences key
      * @param propName the name of the property to set
      * @param scheme the scheme for the associated “with URI” property
      */
-    private void initUserDefined(SharedPreferences preferences, String prefKey,
+    private void initUserDefined(Settings generalSettings, String prefKey,
                                  String propName, String scheme) {
-        putProperty(propName, scheme, preferences.getString(prefKey, null));
+        putProperty(propName, scheme, generalSettings.getString(prefKey));
     }
 
     public void putProperty(String propName, String scheme, String value) {
@@ -160,8 +133,22 @@ public class PropertyManager implements IPropertyManager {
 
     @Override
     public String getSingularProperty(String propertyName) {
+        if (!permissionsProvider.isReadPhoneStatePermissionGranted() && isPropertyDangerous(propertyName)) {
+            eventBus.post(new ReadPhoneStatePermissionRxEvent());
+        }
+
         // for now, all property names are in english...
         return properties.get(propertyName.toLowerCase(Locale.ENGLISH));
+    }
+
+    /**
+     * Dangerous properties are those which require reading phone state:
+     * https://developer.android.com/reference/android/Manifest.permission#READ_PHONE_STATE
+     * @param propertyName The name of the property
+     * @return True if the given property is dangerous, false otherwise.
+     */
+    private boolean isPropertyDangerous(String propertyName) {
+        return propertyName != null && propertyName.equalsIgnoreCase(PROPMGR_PHONE_NUMBER);
     }
 
     @Override

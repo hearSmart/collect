@@ -22,16 +22,18 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.v7.widget.DefaultItemAnimator;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.Toolbar;
 import android.widget.Toast;
+
+import androidx.appcompat.widget.Toolbar;
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import org.odk.collect.android.R;
 import org.odk.collect.android.adapters.AboutListAdapter;
 import org.odk.collect.android.application.Collect;
-import org.odk.collect.android.utilities.CustomTabHelper;
+import org.odk.collect.android.utilities.ExternalWebPageHelper;
+import org.odk.collect.android.utilities.MultiClickGuard;
 
 import java.util.List;
 
@@ -42,11 +44,11 @@ public class AboutActivity extends CollectAbstractActivity implements
 
     private static final String LICENSES_HTML_PATH = "file:///android_asset/open_source_licenses.html";
     private static final String GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=";
-    private static final String ODK_WEBSITE = "https://opendatakit.org";
-    private static final String ODK_FORUM = "https://forum.opendatakit.org";
+    private static final String ODK_WEBSITE = "https://getodk.org";
+    private static final String ODK_FORUM = "https://forum.getodk.org";
 
-    private CustomTabHelper websiteTabHelper;
-    private CustomTabHelper forumTabHelper;
+    private ExternalWebPageHelper websiteTabHelper;
+    private ExternalWebPageHelper forumTabHelper;
     private Uri websiteUri;
     private Uri forumUri;
 
@@ -70,8 +72,8 @@ public class AboutActivity extends CollectAbstractActivity implements
         recyclerView.setAdapter(new AboutListAdapter(items, this, this));
         recyclerView.setItemAnimator(new DefaultItemAnimator());
 
-        websiteTabHelper = new CustomTabHelper();
-        forumTabHelper = new CustomTabHelper();
+        websiteTabHelper = new ExternalWebPageHelper();
+        forumTabHelper = new ExternalWebPageHelper();
 
         websiteUri = Uri.parse(ODK_WEBSITE);
         forumUri = Uri.parse(ODK_FORUM);
@@ -85,13 +87,13 @@ public class AboutActivity extends CollectAbstractActivity implements
 
     @Override
     public void onClick(int position) {
-        if (Collect.allowClick()) {
+        if (MultiClickGuard.allowClick(getClass().getName())) {
             switch (position) {
                 case 0:
-                    websiteTabHelper.openUri(this, websiteUri);
+                    websiteTabHelper.openWebPageInCustomTab(this, websiteUri);
                     break;
                 case 1:
-                    forumTabHelper.openUri(this, forumUri);
+                    forumTabHelper.openWebPageInCustomTab(this, forumUri);
                     break;
                 case 2:
                     Intent shareIntent = new Intent(Intent.ACTION_SEND);
@@ -134,7 +136,7 @@ public class AboutActivity extends CollectAbstractActivity implements
                     break;
                 case 4:
                     Intent intent = new Intent(this, WebViewActivity.class);
-                    intent.putExtra(CustomTabHelper.OPEN_URL, LICENSES_HTML_PATH);
+                    intent.putExtra(ExternalWebPageHelper.OPEN_URL, LICENSES_HTML_PATH);
                     startActivity(intent);
                     break;
             }

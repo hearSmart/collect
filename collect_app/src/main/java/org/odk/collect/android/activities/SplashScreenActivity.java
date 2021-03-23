@@ -15,16 +15,11 @@
 package org.odk.collect.android.activities;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
+import android.os.Handler;
 import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.Window;
@@ -32,55 +27,48 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import org.odk.collect.android.R;
-import org.odk.collect.android.application.Collect;
-import org.odk.collect.android.listeners.PermissionListener;
-import org.odk.collect.android.preferences.GeneralSharedPreferences;
-import org.odk.collect.android.preferences.PreferenceKeys;
+import org.odk.collect.analytics.Analytics;
+import org.odk.collect.android.injection.DaggerUtils;
+import org.odk.collect.android.preferences.keys.GeneralKeys;
+import org.odk.collect.android.preferences.source.SettingsProvider;
+import org.odk.collect.android.utilities.FileUtils;
+import org.odk.collect.android.permissions.PermissionsProvider;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
+import javax.inject.Inject;
+
 import timber.log.Timber;
 
-import static org.odk.collect.android.preferences.PreferenceKeys.KEY_SPLASH_PATH;
-import static org.odk.collect.android.utilities.PermissionUtils.requestStoragePermissions;
+import static org.odk.collect.android.analytics.AnalyticsEvents.SHOW_SPLASH_SCREEN;
+import static org.odk.collect.android.preferences.keys.GeneralKeys.KEY_SPLASH_PATH;
 
 public class SplashScreenActivity extends Activity {
 
     private static final int SPLASH_TIMEOUT = 2000; // milliseconds
-    private static final boolean EXIT = true;
 
     private int imageMaxWidth;
+
+    @Inject
+    Analytics analytics;
+
+    @Inject
+    PermissionsProvider permissionsProvider;
+
+    @Inject
+    SettingsProvider settingsProvider;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // this splash screen should be a blank slate
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-
-        requestStoragePermissions(this, new PermissionListener() {
-            @Override
-            public void granted() {
-                // must be at the beginning of any activity that can be called from an external intent
-                try {
-                    Collect.createODKDirs();
-                    Collect.getInstance().getActivityLogger().open();
-                } catch (RuntimeException e) {
-                    createErrorDialog(e.getMessage(), EXIT);
-                    return;
-                }
-
-                init();
-            }
-
-            @Override
-            public void denied() {
-                // The activity has to finish because ODK Collect cannot function without these permissions.
-                finish();
-            }
-        });
+        DaggerUtils.getComponent(this).inject(this);
+        init();
     }
 
     private void init() {
@@ -89,39 +77,14 @@ public class SplashScreenActivity extends Activity {
 
         setContentView(R.layout.splash_screen);
 
-        // get the shared preferences object
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
+        boolean showSplash = settingsProvider.getGeneralSettings().getBoolean(GeneralKeys.KEY_SHOW_SPLASH);
+        String splashPath = settingsProvider.getGeneralSettings().getString(KEY_SPLASH_PATH);
 
-        // get the package info object with version number
-        PackageInfo packageInfo = null;
-        try {
-            packageInfo =
-                    getPackageManager().getPackageInfo(getPackageName(),
-                            PackageManager.GET_META_DATA);
-        } catch (PackageManager.NameNotFoundException e) {
-            Timber.e(e, "Unable to get package info");
-        }
-
-        boolean firstRun = sharedPreferences.getBoolean(PreferenceKeys.KEY_FIRST_RUN, true);
-        boolean showSplash =
-                sharedPreferences.getBoolean(PreferenceKeys.KEY_SHOW_SPLASH, false);
-        String splashPath = (String) GeneralSharedPreferences.getInstance().get(KEY_SPLASH_PATH);
-
-        // if you've increased version code, then update the version number and set firstRun to true
-        if (sharedPreferences.getLong(PreferenceKeys.KEY_LAST_VERSION, 0)
-                < packageInfo.versionCode) {
-            editor.putLong(PreferenceKeys.KEY_LAST_VERSION, packageInfo.versionCode);
-            editor.apply();
-
-            firstRun = true;
-        }
-
-        // do all the first run things
-        if (firstRun || showSplash) {
-            editor.putBoolean(PreferenceKeys.KEY_FIRST_RUN, false);
-            editor.commit();
+        if (showSplash) {
             startSplashScreen(splashPath);
+
+            String splashPathHash = FileUtils.getMd5Hash(new ByteArrayInputStream(splashPath.getBytes()));
+            analytics.logEvent(SHOW_SPLASH_SCREEN, splashPathHash, "");
         } else {
             endSplashScreen();
         }
@@ -179,71 +142,16 @@ public class SplashScreenActivity extends Activity {
     private void startSplashScreen(String path) {
 
         // add items to the splash screen here. makes things less distracting.
-        ImageView iv = findViewById(R.id.splash);
-        LinearLayout ll = findViewById(R.id.splash_default);
+        ImageView customSplashView = findViewById(R.id.splash);
+        LinearLayout defaultSplashView = findViewById(R.id.splash_default);
 
-        File f = new File(path);
-        if (f.exists()) {
-            iv.setImageBitmap(decodeFile(f));
-            ll.setVisibility(View.GONE);
-            iv.setVisibility(View.VISIBLE);
+        File customSplash = new File(path);
+        if (customSplash.exists()) {
+            customSplashView.setImageBitmap(decodeFile(customSplash));
+            defaultSplashView.setVisibility(View.GONE);
+            customSplashView.setVisibility(View.VISIBLE);
         }
 
-        // create a thread that counts up to the timeout
-        Thread t = new Thread() {
-            int count;
-
-            @Override
-            public void run() {
-                try {
-                    super.run();
-                    while (count < SPLASH_TIMEOUT) {
-                        sleep(100);
-                        count += 100;
-                    }
-                } catch (Exception e) {
-                    Timber.e(e);
-                } finally {
-                    endSplashScreen();
-                }
-            }
-        };
-        t.start();
-    }
-
-    private void createErrorDialog(String errorMsg, final boolean shouldExit) {
-        Collect.getInstance().getActivityLogger().logAction(this, "createErrorDialog", "show");
-        AlertDialog alertDialog = new AlertDialog.Builder(this).create();
-        alertDialog.setIcon(android.R.drawable.ic_dialog_info);
-        alertDialog.setMessage(errorMsg);
-        DialogInterface.OnClickListener errorListener = new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int i) {
-                switch (i) {
-                    case DialogInterface.BUTTON_POSITIVE:
-                        Collect.getInstance().getActivityLogger().logAction(this,
-                                "createErrorDialog", "OK");
-                        if (shouldExit) {
-                            finish();
-                        }
-                        break;
-                }
-            }
-        };
-        alertDialog.setCancelable(false);
-        alertDialog.setButton(getString(R.string.ok), errorListener);
-        alertDialog.show();
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-        Collect.getInstance().getActivityLogger().logOnStart(this);
-    }
-
-    @Override
-    protected void onStop() {
-        Collect.getInstance().getActivityLogger().logOnStop(this);
-        super.onStop();
+        new Handler().postDelayed(this::endSplashScreen, SPLASH_TIMEOUT);
     }
 }

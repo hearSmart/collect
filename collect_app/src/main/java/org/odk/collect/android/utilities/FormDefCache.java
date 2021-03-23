@@ -2,7 +2,8 @@ package org.odk.collect.android.utilities;
 
 import org.javarosa.core.model.FormDef;
 import org.javarosa.core.util.externalizable.ExtUtil;
-import org.odk.collect.android.application.Collect;
+import org.odk.collect.android.storage.StoragePathProvider;
+import org.odk.collect.android.storage.StorageSubdirectory;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -32,7 +33,7 @@ public class FormDefCache {
         final long formSaveStart = System.currentTimeMillis();
         File cachedFormDefFile = FormDefCache.getCacheFile(new File(formPath));
         final File tempCacheFile = File.createTempFile("cache", null,
-                new File(Collect.CACHE_PATH));
+                new File(new StoragePathProvider().getOdkDirPath(StorageSubdirectory.CACHE)));
         Timber.i("Started saving %s to the cache via temp file %s",
                 formDef.getTitle(), tempCacheFile.getName());
 
@@ -52,7 +53,7 @@ public class FormDefCache {
             Timber.i("Deleting no-longer-wanted temp cache file %s for form %s",
                     tempCacheFile.getName(), formDef.getTitle());
             if (!tempCacheFile.delete()) {
-                Timber.e("Unable to delete " + tempCacheFile.getName());
+                Timber.e("Unable to delete %s", tempCacheFile.getName());
             }
         } else {
             if (tempCacheFile.renameTo(cachedFormDefFile)) {
@@ -79,20 +80,21 @@ public class FormDefCache {
     public static FormDef readCache(File formXml) {
         final File cachedForm = getCacheFile(formXml);
         if (cachedForm.exists()) {
-            Timber.i("Attempting to load %s from cached file: %s.",
-                    formXml.getName(), cachedForm.getName());
+            Timber.i("Attempting to load %s from cached file: %s.", formXml.getName(), cachedForm.getName());
             final long start = System.currentTimeMillis();
-            final FormDef deserializedFormDef = deserializeFormDef(cachedForm);
-            if (deserializedFormDef != null) {
-                Timber.i("Loaded in %.3f seconds.", (System.currentTimeMillis() - start) / 1000F);
-                return deserializedFormDef;
-            }
 
-            // An error occurred with deserialization. Remove the file, and make a
-            // new .formdef from xml.
-            Timber.w("Deserialization FAILED! Deleting cache file: %s",
-                    cachedForm.getAbsolutePath());
-            cachedForm.delete();
+            try {
+                final FormDef deserializedFormDef = deserializeFormDef(cachedForm);
+                if (deserializedFormDef != null) {
+                    Timber.i("Loaded in %.3f seconds.", (System.currentTimeMillis() - start) / 1000F);
+                    return deserializedFormDef;
+                }
+            } catch (Exception e) {
+                // New .formdef will be created from XML
+                Timber.w("Deserialization FAILED! Deleting cache file: %s", cachedForm.getAbsolutePath());
+                Timber.w(e);
+                cachedForm.delete();
+            }
         }
         return null;
     }
@@ -103,25 +105,15 @@ public class FormDefCache {
      * @return a File object
      */
     private static File getCacheFile(File formXml) {
-        return new File(Collect.CACHE_PATH + File.separator +
+        return new File(new StoragePathProvider().getOdkDirPath(StorageSubdirectory.CACHE) + File.separator +
                 FileUtils.getMd5Hash(formXml) + ".formdef");
     }
 
-    private static FormDef deserializeFormDef(File serializedFormDef) {
-        FileInputStream fis;
+    private static FormDef deserializeFormDef(File serializedFormDef) throws Exception {
         FormDef fd;
-        try {
-            // create new form def
+        try (DataInputStream dis = new DataInputStream(new FileInputStream(serializedFormDef))) {
             fd = new FormDef();
-            fis = new FileInputStream(serializedFormDef);
-            DataInputStream dis = new DataInputStream(fis);
-
-            // read serialized formdef into new formdef
             fd.readExternal(dis, ExtUtil.defaultPrototypes());
-            dis.close();
-        } catch (Exception e) {
-            Timber.e(e);
-            fd = null;
         }
 
         return fd;

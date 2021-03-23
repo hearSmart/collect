@@ -16,97 +16,86 @@
 
 package org.odk.collect.android.adapters;
 
-import android.content.Context;
 import android.graphics.drawable.GradientDrawable;
-import android.support.annotation.NonNull;
-import android.support.v7.widget.RecyclerView.Adapter;
-import android.support.v7.widget.RecyclerView.ViewHolder;
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView.Adapter;
+import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import org.javarosa.core.model.FormIndex;
 import org.javarosa.core.model.SelectChoice;
 import org.odk.collect.android.R;
 import org.odk.collect.android.adapters.RankingListAdapter.ItemViewHolder;
 import org.odk.collect.android.application.Collect;
-import org.odk.collect.android.logic.FormController;
+import org.odk.collect.android.utilities.QuestionFontSizeUtils;
+import org.odk.collect.android.javarosawrapper.FormController;
+import org.odk.collect.android.utilities.StringUtils;
 import org.odk.collect.android.utilities.ThemeUtils;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 public class RankingListAdapter extends Adapter<ItemViewHolder> {
 
-    private final List<String> values;
-    private final FormController formController;
+    private final List<SelectChoice> items;
+    private final FormIndex formIndex;
 
-    public RankingListAdapter(List<String> values) {
-        this.values = new ArrayList<>(values);
-        formController = Collect.getInstance().getFormController();
+    public RankingListAdapter(List<SelectChoice> items, FormIndex formIndex) {
+        this.items = items;
+        this.formIndex = formIndex;
     }
 
     @NonNull
     @Override
     public ItemViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        return new ItemViewHolder(parent.getContext(), LayoutInflater.from(parent.getContext()).inflate(R.layout.ranking_item, parent, false));
+        return new ItemViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.ranking_item, parent, false));
     }
 
     @Override
     public void onBindViewHolder(@NonNull final ItemViewHolder holder, int position) {
-        String itemName = formController != null
-                ? formController.getQuestionPrompt().getSelectChoiceText(getItem(values.get(position)))
-                : values.get(position);
+        FormController formController = Collect.getInstance().getFormController();
+        String itemName = String.valueOf(StringUtils.textToHtml(formController.getQuestionPrompt(formIndex).getSelectChoiceText(items.get(position))));
         holder.textView.setText(itemName);
     }
 
-    private SelectChoice getItem(String value) {
-        for (SelectChoice item : formController.getQuestionPrompt().getSelectChoices()) {
-            if (item.getValue().equals(value)) {
-                return item;
-            }
-        }
-        return null;
-    }
-
     public void onItemMove(int fromPosition, int toPosition) {
-        Collections.swap(values, fromPosition, toPosition);
+        Collections.swap(items, fromPosition, toPosition);
         notifyItemMoved(fromPosition, toPosition);
     }
 
     @Override
     public int getItemCount() {
-        return values.size();
+        return items.size();
     }
 
-    public List<String> getValues() {
-        return values;
+    public List<SelectChoice> getItems() {
+        return items;
     }
 
     public static class ItemViewHolder extends ViewHolder {
 
-        final Context context;
         final TextView textView;
         final ThemeUtils themeUtils;
 
-        ItemViewHolder(Context context, View itemView) {
+        ItemViewHolder(View itemView) {
             super(itemView);
-            this.context = context;
             textView = itemView.findViewById(R.id.rank_item_text);
-            textView.setTextSize(Collect.getQuestionFontsize());
-            themeUtils = new ThemeUtils(context);
+            textView.setTextSize(QuestionFontSizeUtils.getQuestionFontSize());
+            themeUtils = new ThemeUtils(itemView.getContext());
         }
 
         public void onItemSelected() {
             GradientDrawable border = new GradientDrawable();
-            border.setColor(themeUtils.getRankItemColor());
+            border.setColor(themeUtils.getColorPrimary());
             border.setStroke(10, themeUtils.getAccentColor());
             itemView.setBackground(border);
         }
 
         public void onItemClear() {
-            itemView.setBackgroundColor(themeUtils.getRankItemColor());
+            itemView.setBackgroundColor(themeUtils.getColorPrimary());
         }
     }
 }

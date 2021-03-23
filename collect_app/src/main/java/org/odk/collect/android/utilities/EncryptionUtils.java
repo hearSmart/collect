@@ -19,6 +19,8 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.util.Base64;
 
+import androidx.annotation.Nullable;
+
 import org.apache.commons.io.IOUtils;
 import org.kxml2.io.KXmlSerializer;
 import org.kxml2.kdom.Document;
@@ -27,8 +29,9 @@ import org.kxml2.kdom.Node;
 import org.odk.collect.android.R;
 import org.odk.collect.android.application.Collect;
 import org.odk.collect.android.dao.FormsDao;
+import org.odk.collect.android.database.DatabaseFormsRepository;
 import org.odk.collect.android.exception.EncryptionException;
-import org.odk.collect.android.logic.FormController.InstanceMetadata;
+import org.odk.collect.android.javarosawrapper.FormController.InstanceMetadata;
 import org.odk.collect.android.provider.FormsProviderAPI.FormsColumns;
 import org.odk.collect.android.provider.InstanceProviderAPI.InstanceColumns;
 
@@ -64,10 +67,10 @@ import javax.crypto.spec.SecretKeySpec;
 
 import timber.log.Timber;
 
-import static org.odk.collect.android.utilities.ApplicationConstants.XML_OPENROSA_NAMESPACE;
+import static org.odk.collect.android.utilities.ApplicationConstants.Namespaces.XML_OPENROSA_NAMESPACE;
 
 /**
- * Utility class for encrypting submissions during the SaveToDiskTask.
+ * Utility class for encrypting submissions during the SaveFormToDisk.
  *
  * @author mitchellsundt@gmail.com
  */
@@ -247,11 +250,18 @@ public class EncryptionUtils {
     /**
      * Retrieve the encryption information for this uri.
      *
-     * @param uri either an instance URI (if previously saved) or a form URI
+     * @param   uri either an instance URI (if previously saved) or a form URI
+     * @param   instanceMetadata the metadata for this instance used to check if the form definition
+     *                           defines an instanceID
+     * @return  an {@link EncryptedFormInformation} object if the form definition requests encryption
+     *          and the record can be encrypted. {@code null} if the form definition does not request
+     *          encryption or if the BouncyCastle implementation is not present.
+     *
+     * @throws  EncryptionException if the form definition requests encryption but the record can't
+     *                              be encrypted
      */
     public static EncryptedFormInformation getEncryptedFormInformation(Uri uri,
             InstanceMetadata instanceMetadata) throws EncryptionException {
-
         ContentResolver cr = Collect.getInstance().getContentResolver();
 
         // fetch the form information
@@ -261,51 +271,43 @@ public class EncryptionUtils {
 
         Cursor formCursor = null;
         try {
-            if (cr.getType(uri) == InstanceColumns.CONTENT_ITEM_TYPE) {
-                // chain back to the Form record...
-                String[] selectionArgs = null;
-                String selection = null;
-                Cursor instanceCursor = null;
-                try {
-                    instanceCursor = cr.query(uri, null, null, null, null);
+            if (InstanceColumns.CONTENT_ITEM_TYPE.equals(cr.getType(uri))) {
+                String[] selectionArgs;
+                String selection = FormsColumns.JR_FORM_ID + " =? AND ";
+                try (Cursor instanceCursor = cr.query(uri, null, null, null, null)) {
                     if (instanceCursor.getCount() != 1) {
-                        String msg = Collect.getInstance().getString(R.string.not_exactly_one_record_for_this_instance);
+                        String msg = TranslationHandler.getString(Collect.getInstance(), R.string.not_exactly_one_record_for_this_instance);
                         Timber.e(msg);
                         throw new EncryptionException(msg, null);
                     }
                     instanceCursor.moveToFirst();
-                    String jrFormId = instanceCursor.getString(
-                            instanceCursor.getColumnIndex(InstanceColumns.JR_FORM_ID));
+                    formId = instanceCursor.getString(instanceCursor.getColumnIndex(InstanceColumns.JR_FORM_ID));
                     int idxJrVersion = instanceCursor.getColumnIndex(InstanceColumns.JR_VERSION);
+                    formVersion = instanceCursor.getString(idxJrVersion);
                     if (!instanceCursor.isNull(idxJrVersion)) {
-                        selectionArgs = new String[]{jrFormId, instanceCursor.getString(
-                                idxJrVersion)};
-                        selection = FormsColumns.JR_FORM_ID + " =? AND " + FormsColumns.JR_VERSION
-                                + "=?";
+                        selectionArgs = new String[]{formId, instanceCursor.getString(idxJrVersion)};
+                        selection += FormsColumns.JR_VERSION + "=?";
                     } else {
-                        selectionArgs = new String[]{jrFormId};
-                        selection = FormsColumns.JR_FORM_ID + " =? AND " + FormsColumns.JR_VERSION
-                                + " IS NULL";
-                    }
-                } finally {
-                    if (instanceCursor != null) {
-                        instanceCursor.close();
+                        selectionArgs = new String[]{formId};
+                        selection += FormsColumns.JR_VERSION + " IS NULL";
                     }
                 }
 
                 formCursor = new FormsDao().getFormsCursor(selection, selectionArgs);
 
-                if (formCursor.getCount() != 1) {
-                    String msg = Collect.getInstance().getString(R.string.not_exactly_one_blank_form_for_this_form_id);
-                    Timber.e(msg);
+                // OK to finalize with form definition that was soft-deleted. OK if there are multiple
+                // forms with the same formid/version as long as only one is active (not deleted).
+                if (formCursor.getCount() == 0 || new DatabaseFormsRepository().getAllNotDeletedByFormIdAndVersion(formId, formVersion).size() > 1) {
+                    String msg = TranslationHandler.getString(Collect.getInstance(), R.string.not_exactly_one_blank_form_for_this_form_id);
+                    Timber.d(msg);
                     throw new EncryptionException(msg, null);
                 }
                 formCursor.moveToFirst();
-            } else if (cr.getType(uri) == FormsColumns.CONTENT_ITEM_TYPE) {
+            } else if (FormsColumns.CONTENT_ITEM_TYPE.equals(cr.getType(uri))) {
                 formCursor = cr.query(uri, null, null, null, null);
                 if (formCursor.getCount() != 1) {
-                    String msg = Collect.getInstance().getString(R.string.not_exactly_one_blank_form_for_this_form_id);
-                    Timber.e(msg);
+                    String msg = TranslationHandler.getString(Collect.getInstance(), R.string.not_exactly_one_blank_form_for_this_form_id);
+                    Timber.d(msg);
                     throw new EncryptionException(msg, null);
                 }
                 formCursor.moveToFirst();
@@ -313,8 +315,8 @@ public class EncryptionUtils {
 
             formId = formCursor.getString(formCursor.getColumnIndex(FormsColumns.JR_FORM_ID));
             if (formId == null || formId.length() == 0) {
-                String msg = Collect.getInstance().getString(R.string.no_form_id_specified);
-                Timber.e(msg);
+                String msg = TranslationHandler.getString(Collect.getInstance(), R.string.no_form_id_specified);
+                Timber.d(msg);
                 throw new EncryptionException(msg, null);
             }
             int idxVersion = formCursor.getColumnIndex(FormsColumns.JR_VERSION);
@@ -334,15 +336,15 @@ public class EncryptionUtils {
             try {
                 kf = KeyFactory.getInstance(RSA_ALGORITHM);
             } catch (NoSuchAlgorithmException e) {
-                String msg = Collect.getInstance().getString(R.string.phone_does_not_support_rsa);
-                Timber.e(e, "%s due to %s ", msg, e.getMessage());
+                String msg = TranslationHandler.getString(Collect.getInstance(), R.string.phone_does_not_support_rsa);
+                Timber.d(e, "%s due to %s ", msg, e.getMessage());
                 throw new EncryptionException(msg, e);
             }
             try {
                 pk = kf.generatePublic(publicKeySpec);
             } catch (InvalidKeySpecException e) {
-                String msg = Collect.getInstance().getString(R.string.invalid_rsa_public_key);
-                Timber.e(e, "%s due to %s ", msg, e.getMessage());
+                String msg = TranslationHandler.getString(Collect.getInstance(), R.string.invalid_rsa_public_key);
+                Timber.d(e, "%s due to %s ", msg, e.getMessage());
                 throw new EncryptionException(msg, e);
             }
         } finally {
@@ -351,11 +353,9 @@ public class EncryptionUtils {
             }
         }
 
-        // submission must have an OpenRosa metadata block with a non-null
-        // instanceID value.
+        // submission must have an OpenRosa metadata block with a non-null instanceID
         if (instanceMetadata.instanceId == null) {
-            Timber.e("No OpenRosa metadata block or no instanceId defined in that block");
-            return null;
+            throw new EncryptionException("This form does not specify an instanceID. You must specify one to enable encryption.", null);
         }
 
         // For now, prevent encryption if the BouncyCastle implementation is not present.
@@ -371,7 +371,7 @@ public class EncryptionUtils {
             } else {
                 msg = "No BouncyCastle provider for padding implementation of symmetric algorithm!";
             }
-            Timber.e(msg);
+            Timber.d(msg);
             return null;
         }
 
@@ -427,16 +427,17 @@ public class EncryptionUtils {
         }
     }
 
-    public static boolean deletePlaintextFiles(File instanceXml) {
+    public static boolean deletePlaintextFiles(File instanceXml, @Nullable File lastSaved) {
         // NOTE: assume the directory containing the instanceXml contains ONLY
         // files related to this one instance.
         File instanceDir = instanceXml.getParentFile();
 
         boolean allSuccessful = true;
-        // encrypt files that do not end with ".enc", and do not start with ".";
+
+        // Delete files that do not end with ".enc", and do not start with ".";
         // ignore directories
-        File[] allFiles = instanceDir.listFiles();
-        for (File f : allFiles) {
+        File[] instanceFiles = instanceDir.listFiles();
+        for (File f : instanceFiles) {
             if (f.equals(instanceXml)) {
                 continue; // don't touch instance file
             }
@@ -449,6 +450,12 @@ public class EncryptionUtils {
                 // short-circuit
             }
         }
+
+        // Delete the last-saved instance, if one exists.
+        if (lastSaved != null && lastSaved.exists()) {
+            allSuccessful &= lastSaved.delete();
+        }
+
         return allSuccessful;
     }
 
@@ -462,7 +469,7 @@ public class EncryptionUtils {
         // encrypt files that do not end with ".enc", and do not start with ".";
         // ignore directories
         File[] allFiles = instanceDir.listFiles();
-        List<File> filesToProcess = new ArrayList<File>();
+        List<File> filesToProcess = new ArrayList<>();
         for (File f : allFiles) {
             if (f.equals(instanceXml)) {
                 continue; // don't touch restore file

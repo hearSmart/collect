@@ -16,141 +16,99 @@ package org.odk.collect.android.widgets;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.util.TypedValue;
+import android.view.View;
 
 import org.javarosa.core.model.data.IAnswerData;
 import org.javarosa.core.model.data.StringData;
 import org.javarosa.form.api.FormEntryPrompt;
+
 import org.odk.collect.android.R;
-import org.odk.collect.android.activities.FormEntryActivity;
-import org.odk.collect.android.activities.GeoShapeGoogleMapActivity;
-import org.odk.collect.android.activities.GeoShapeOsmMapActivity;
-import org.odk.collect.android.listeners.PermissionListener;
-import org.odk.collect.android.preferences.PreferenceKeys;
-import org.odk.collect.android.utilities.PlayServicesUtil;
-import org.odk.collect.android.widgets.interfaces.BinaryWidget;
+import org.odk.collect.android.databinding.GeoWidgetAnswerBinding;
+import org.odk.collect.android.formentry.questions.QuestionDetails;
+import org.odk.collect.android.widgets.interfaces.WidgetDataReceiver;
+import org.odk.collect.android.widgets.interfaces.GeoDataRequester;
+import org.odk.collect.android.widgets.utilities.WaitingForDataRegistry;
 
-import static org.odk.collect.android.utilities.ApplicationConstants.RequestCodes;
-import static org.odk.collect.android.utilities.PermissionUtils.requestLocationPermissions;
-
-/**
- * GeoShapeWidget is the widget that allows the user to get Collect multiple GPS points.
- *
- * @author Jon Nordling (jonnordling@gmail.com)
- */
 @SuppressLint("ViewConstructor")
-public class GeoShapeWidget extends QuestionWidget implements BinaryWidget {
+public class GeoShapeWidget extends QuestionWidget implements WidgetDataReceiver {
+    GeoWidgetAnswerBinding binding;
 
-    public static final String SHAPE_LOCATION = "gp";
-    public static final String GOOGLE_MAP_KEY = "google_maps";
-    public SharedPreferences sharedPreferences;
-    public String mapSDK;
-    private final Button createShapeButton;
-    private final TextView answerDisplay;
+    private final WaitingForDataRegistry waitingForDataRegistry;
+    private final GeoDataRequester geoDataRequester;
 
-    public GeoShapeWidget(Context context, FormEntryPrompt prompt) {
-        super(context, prompt);
-        // assemble the widget...
-
-        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-        mapSDK = sharedPreferences.getString(PreferenceKeys.KEY_MAP_SDK, GOOGLE_MAP_KEY);
-
-        answerDisplay = getCenteredAnswerTextView();
-
-        createShapeButton = getSimpleButton(getContext().getString(R.string.get_shape));
-
-        if (prompt.isReadOnly()) {
-            createShapeButton.setEnabled(false);
-        }
-
-        LinearLayout answerLayout = new LinearLayout(getContext());
-        answerLayout.setOrientation(LinearLayout.VERTICAL);
-        answerLayout.addView(createShapeButton);
-        answerLayout.addView(answerDisplay);
-        addAnswerView(answerLayout);
-
-        boolean dataAvailable = false;
-        String s = prompt.getAnswerText();
-        if (s != null && !s.equals("")) {
-            dataAvailable = true;
-            setBinaryData(s);
-        }
-
-        updateButtonLabelsAndVisibility(dataAvailable);
-    }
-
-    private void startGeoShapeActivity() {
-        Intent i;
-        if (mapSDK.equals(GOOGLE_MAP_KEY)) {
-            if (PlayServicesUtil.isGooglePlayServicesAvailable(getContext())) {
-                i = new Intent(getContext(), GeoShapeGoogleMapActivity.class);
-            } else {
-                PlayServicesUtil.showGooglePlayServicesAvailabilityErrorDialog(getContext());
-                return;
-            }
-        } else {
-            i = new Intent(getContext(), GeoShapeOsmMapActivity.class);
-        }
-        String s = answerDisplay.getText().toString();
-        if (s.length() != 0) {
-            i.putExtra(SHAPE_LOCATION, s);
-        }
-        ((Activity) getContext()).startActivityForResult(i, RequestCodes.GEOSHAPE_CAPTURE);
-    }
-
-    private void updateButtonLabelsAndVisibility(boolean dataAvailable) {
-        if (dataAvailable) {
-            createShapeButton.setText(
-                    getContext().getString(R.string.geoshape_view_change_location));
-        } else {
-            createShapeButton.setText(getContext().getString(R.string.get_shape));
-        }
+    public GeoShapeWidget(Context context, QuestionDetails questionDetails, WaitingForDataRegistry waitingForDataRegistry,
+                          GeoDataRequester geoDataRequester) {
+        super(context, questionDetails);
+        this.waitingForDataRegistry = waitingForDataRegistry;
+        this.geoDataRequester = geoDataRequester;
     }
 
     @Override
-    public void setBinaryData(Object answer) {
-        String s = answer.toString();
-        answerDisplay.setText(s);
+    protected View onCreateAnswerView(Context context, FormEntryPrompt prompt, int answerFontSize) {
+        binding = GeoWidgetAnswerBinding.inflate(((Activity) context).getLayoutInflater());
+
+        binding.simpleButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, answerFontSize);
+        binding.geoAnswerText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, answerFontSize);
+
+        binding.simpleButton.setOnClickListener(v ->
+                geoDataRequester.requestGeoShape(context, prompt, getAnswerText(), waitingForDataRegistry));
+
+        String stringAnswer = prompt.getAnswerText();
+        binding.geoAnswerText.setText(stringAnswer);
+
+        boolean dataAvailable = stringAnswer != null && !stringAnswer.isEmpty();
+
+        if (getFormEntryPrompt().isReadOnly()) {
+            if (dataAvailable) {
+                binding.simpleButton.setText(R.string.geoshape_view_read_only);
+            } else {
+                binding.simpleButton.setVisibility(View.GONE);
+            }
+        } else {
+            if (dataAvailable) {
+                binding.simpleButton.setText(R.string.geoshape_view_change_location);
+            } else {
+                binding.simpleButton.setText(R.string.get_shape);
+            }
+        }
+
+        return binding.getRoot();
     }
 
     @Override
     public IAnswerData getAnswer() {
-        String s = answerDisplay.getText().toString();
-
-        return !s.isEmpty()
-                ? new StringData(s)
-                : null;
+        return getAnswerText().isEmpty() ? null : new StringData(getAnswerText());
     }
 
     @Override
     public void clearAnswer() {
-        answerDisplay.setText(null);
-        updateButtonLabelsAndVisibility(false);
+        binding.geoAnswerText.setText(null);
+        binding.simpleButton.setText(R.string.get_shape);
+        widgetValueChanged();
     }
 
     @Override
     public void setOnLongClickListener(OnLongClickListener l) {
-        createShapeButton.setOnLongClickListener(l);
-        answerDisplay.setOnLongClickListener(l);
+        binding.simpleButton.setOnLongClickListener(l);
+        binding.geoAnswerText.setOnLongClickListener(l);
     }
 
     @Override
-    public void onButtonClick(int buttonId) {
-        requestLocationPermissions((FormEntryActivity) getContext(), new PermissionListener() {
-            @Override
-            public void granted() {
-                waitForData();
-                startGeoShapeActivity();
-            }
+    public void cancelLongPress() {
+        super.cancelLongPress();
+        binding.simpleButton.cancelLongPress();
+        binding.geoAnswerText.cancelLongPress();
+    }
 
-            @Override
-            public void denied() {
-            }
-        });
+    @Override
+    public void setData(Object answer) {
+        binding.geoAnswerText.setText(answer.toString());
+        binding.simpleButton.setText(answer.toString().isEmpty() ? R.string.get_shape : R.string.geoshape_view_change_location);
+        widgetValueChanged();
+    }
+
+    private String getAnswerText() {
+        return binding.geoAnswerText.getText().toString();
     }
 }

@@ -14,18 +14,22 @@
 
 package org.odk.collect.android.dao.helpers;
 
-import android.database.Cursor;
 import android.net.Uri;
 
 import org.odk.collect.android.application.Collect;
-import org.odk.collect.android.dao.InstancesDao;
-import org.odk.collect.android.logic.FormController;
-import org.odk.collect.android.preferences.GeneralSharedPreferences;
-import org.odk.collect.android.preferences.PreferenceKeys;
-import org.odk.collect.android.provider.InstanceProviderAPI;
+import org.odk.collect.android.database.DatabaseInstancesRepository;
+import org.odk.collect.android.instances.Instance;
+import org.odk.collect.android.javarosawrapper.FormController;
+import org.odk.collect.android.provider.InstanceProviderAPI.InstanceColumns;
 
 import timber.log.Timber;
 
+/**
+ * Provides abstractions over database calls for instances.
+ *
+ * @deprecated to favor {@link org.odk.collect.android.instances.InstancesRepository}
+ */
+@Deprecated
 public final class InstancesDaoHelper {
 
     private InstancesDaoHelper() {
@@ -38,58 +42,53 @@ public final class InstancesDaoHelper {
      * then resaved.
      *
      * @return true if form has been marked completed, false otherwise.
+     * <p>
+     * TODO: replace with method in {@link org.odk.collect.android.instances.InstancesRepository}
+     * that returns an {@link Instance} object from a path.
      */
-    public static boolean isInstanceComplete(boolean end) {
+    public static boolean isInstanceComplete(boolean end, boolean completedByDefault) {
         // default to false if we're mid form
         boolean complete = false;
 
         FormController formController = Collect.getInstance().getFormController();
         if (formController != null && formController.getInstanceFile() != null) {
             // First check if we're at the end of the form, then check the preferences
-            complete = end && (boolean) GeneralSharedPreferences.getInstance()
-                    .get(PreferenceKeys.KEY_COMPLETED_DEFAULT);
+            complete = end && completedByDefault;
 
             // Then see if we've already marked this form as complete before
             String path = formController.getInstanceFile().getAbsolutePath();
-            try (Cursor c = new InstancesDao().getInstancesCursorForFilePath(path)) {
-                if (c != null && c.getCount() > 0) {
-                    c.moveToFirst();
-                    int columnIndex = c.getColumnIndex(InstanceProviderAPI.InstanceColumns.STATUS);
-                    String status = c.getString(columnIndex);
-                    if (InstanceProviderAPI.STATUS_COMPLETE.equals(status)) {
-                        complete = true;
-                    }
-                }
+            Instance instance = new DatabaseInstancesRepository().getOneByPath(path);
+            if (instance != null && instance.getStatus().equals(Instance.STATUS_COMPLETE)) {
+                complete = true;
             }
         } else {
             Timber.w("FormController or its instanceFile field has a null value");
         }
+
         return complete;
     }
 
+    // TODO: replace with method in {@link org.odk.collect.android.instances.InstancesRepository}
+    // that returns an {@link Instance} object from a path.
     public static Uri getLastInstanceUri(String path) {
         if (path != null) {
-            try (Cursor c = new InstancesDao().getInstancesCursorForFilePath(path)) {
-                if (c != null && c.getCount() > 0) {
-                    // should only be one...
-                    c.moveToFirst();
-                    String id = c.getString(c.getColumnIndex(InstanceProviderAPI.InstanceColumns._ID));
-                    return Uri.withAppendedPath(InstanceProviderAPI.InstanceColumns.CONTENT_URI, id);
-                }
+            Instance instance = new DatabaseInstancesRepository().getOneByPath(path);
+            if (instance != null) {
+                return Uri.withAppendedPath(InstanceColumns.CONTENT_URI, instance.getId().toString());
             }
         }
+
         return null;
     }
 
+    // TODO: replace with method in {@link org.odk.collect.android.instances.InstancesRepository}
+    // that returns an {@link Instance} object from a path.
     public static boolean isInstanceAvailable(String path) {
-        boolean isAvailable = false;
         if (path != null) {
-            try (Cursor c = new InstancesDao().getInstancesCursorForFilePath(path)) {
-                if (c != null) {
-                    isAvailable = c.getCount() > 0;
-                }
-            }
+            Instance instance = new DatabaseInstancesRepository().getOneByPath(path);
+            return instance != null;
+        } else {
+            return false;
         }
-        return isAvailable;
     }
 }

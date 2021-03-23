@@ -16,11 +16,9 @@
 
 package org.odk.collect.android.fragments.dialogs;
 
-import org.javarosa.core.model.FormIndex;
 import org.joda.time.LocalDateTime;
 import org.joda.time.chrono.IslamicChronology;
 import org.odk.collect.android.R;
-import org.odk.collect.android.logic.DatePickerDetails;
 import org.odk.collect.android.utilities.DateTimeUtils;
 
 import java.util.Arrays;
@@ -32,13 +30,6 @@ public class IslamicDatePickerDialog extends CustomDatePickerDialog {
 
     private String[] monthsArray;
 
-    public static IslamicDatePickerDialog newInstance(FormIndex formIndex, LocalDateTime date, DatePickerDetails datePickerDetails) {
-        IslamicDatePickerDialog dialog = new IslamicDatePickerDialog();
-        dialog.setArguments(getArgs(formIndex, date, datePickerDetails));
-
-        return dialog;
-    }
-
     @Override
     public void onResume() {
         super.onResume();
@@ -48,7 +39,8 @@ public class IslamicDatePickerDialog extends CustomDatePickerDialog {
 
     @Override
     protected void updateDays() {
-        setUpDayPicker(getCurrentIslamicDate());
+        LocalDateTime localDateTime = getCurrentIslamicDate();
+        setUpDayPicker(localDateTime.getDayOfMonth(), localDateTime.dayOfMonth().getMaximumValue());
     }
 
     @Override
@@ -62,9 +54,9 @@ public class IslamicDatePickerDialog extends CustomDatePickerDialog {
                 .toDateTime()
                 .withChronology(IslamicChronology.getInstance())
                 .toLocalDateTime();
-        setUpDayPicker(islamicDate);
-        setUpMonthPicker(islamicDate, monthsArray);
-        setUpYearPicker(islamicDate, MIN_SUPPORTED_YEAR, MAX_SUPPORTED_YEAR);
+        setUpDayPicker(islamicDate.getDayOfMonth(), islamicDate.dayOfMonth().getMaximumValue());
+        setUpMonthPicker(islamicDate.getMonthOfYear(), monthsArray);
+        setUpYearPicker(islamicDate.getYear(), MIN_SUPPORTED_YEAR, MAX_SUPPORTED_YEAR);
     }
 
     private void setUpValues() {
@@ -80,6 +72,9 @@ public class IslamicDatePickerDialog extends CustomDatePickerDialog {
         LocalDateTime islamicDate = new LocalDateTime(islamicYear, islamicMonth + 1, 1, 0, 0, 0, 0, IslamicChronology.getInstance());
         if (islamicDay > islamicDate.dayOfMonth().getMaximumValue()) {
             islamicDay = islamicDate.dayOfMonth().getMaximumValue();
+        }
+        if (islamicDay < islamicDate.dayOfMonth().getMinimumValue()) {
+            islamicDay = islamicDate.dayOfMonth().getMinimumValue();
         }
 
         return new LocalDateTime(islamicYear, islamicMonth + 1, islamicDay, 0, 0, 0, 0, IslamicChronology.getInstance());

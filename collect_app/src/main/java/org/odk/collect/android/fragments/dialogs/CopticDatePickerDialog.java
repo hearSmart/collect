@@ -16,11 +16,9 @@
 
 package org.odk.collect.android.fragments.dialogs;
 
-import org.javarosa.core.model.FormIndex;
 import org.joda.time.LocalDateTime;
 import org.joda.time.chrono.CopticChronology;
 import org.odk.collect.android.R;
-import org.odk.collect.android.logic.DatePickerDetails;
 import org.odk.collect.android.utilities.DateTimeUtils;
 
 import java.util.Arrays;
@@ -31,13 +29,6 @@ public class CopticDatePickerDialog extends CustomDatePickerDialog {
 
     private String[] monthsArray;
 
-    public static CopticDatePickerDialog newInstance(FormIndex formIndex, LocalDateTime date, DatePickerDetails datePickerDetails) {
-        CopticDatePickerDialog dialog = new CopticDatePickerDialog();
-        dialog.setArguments(getArgs(formIndex, date, datePickerDetails));
-
-        return dialog;
-    }
-
     @Override
     public void onResume() {
         super.onResume();
@@ -47,7 +38,8 @@ public class CopticDatePickerDialog extends CustomDatePickerDialog {
 
     @Override
     protected void updateDays() {
-        setUpDayPicker(getCurrentCopticDate());
+        LocalDateTime localDateTime = getCurrentCopticDate();
+        setUpDayPicker(localDateTime.getDayOfMonth(), localDateTime.dayOfMonth().getMaximumValue());
     }
 
     @Override
@@ -61,9 +53,9 @@ public class CopticDatePickerDialog extends CustomDatePickerDialog {
                 .toDateTime()
                 .withChronology(CopticChronology.getInstance())
                 .toLocalDateTime();
-        setUpDayPicker(copticDate);
-        setUpMonthPicker(copticDate, monthsArray);
-        setUpYearPicker(copticDate, MIN_SUPPORTED_YEAR, MAX_SUPPORTED_YEAR);
+        setUpDayPicker(copticDate.getDayOfMonth(), copticDate.dayOfMonth().getMaximumValue());
+        setUpMonthPicker(copticDate.getMonthOfYear(), monthsArray);
+        setUpYearPicker(copticDate.getYear(), MIN_SUPPORTED_YEAR, MAX_SUPPORTED_YEAR);
     }
 
     private void setUpValues() {
@@ -79,6 +71,10 @@ public class CopticDatePickerDialog extends CustomDatePickerDialog {
         LocalDateTime copticDate = new LocalDateTime(copticYear, copticMonth + 1, 1, 0, 0, 0, 0, CopticChronology.getInstance());
         if (copticDay > copticDate.dayOfMonth().getMaximumValue()) {
             copticDay = copticDate.dayOfMonth().getMaximumValue();
+        }
+
+        if (copticDay < copticDate.dayOfMonth().getMinimumValue()) {
+            copticDay = copticDate.dayOfMonth().getMinimumValue();
         }
 
         return new LocalDateTime(copticYear, copticMonth + 1, copticDay, 0, 0, 0, 0, CopticChronology.getInstance());

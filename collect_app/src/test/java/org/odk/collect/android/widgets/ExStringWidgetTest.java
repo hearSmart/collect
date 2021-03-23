@@ -1,12 +1,13 @@
 package org.odk.collect.android.widgets;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import net.bytebuddy.utility.RandomString;
 
 import org.javarosa.core.model.data.StringData;
+import org.odk.collect.android.formentry.questions.QuestionDetails;
 import org.odk.collect.android.widgets.base.GeneralExStringWidgetTest;
-import org.robolectric.RuntimeEnvironment;
+import org.odk.collect.android.widgets.support.FakeWaitingForDataRegistry;
 
 import static org.mockito.Mockito.when;
 
@@ -19,7 +20,7 @@ public class ExStringWidgetTest extends GeneralExStringWidgetTest<ExStringWidget
     @NonNull
     @Override
     public ExStringWidget createWidget() {
-        return new ExStringWidget(RuntimeEnvironment.application, formEntryPrompt);
+        return new ExStringWidget(activity, new QuestionDetails(formEntryPrompt, "formAnalyticsID"), new FakeWaitingForDataRegistry());
     }
 
     @NonNull

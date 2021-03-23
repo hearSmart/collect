@@ -1,12 +1,12 @@
 package org.odk.collect.android.widgets;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import net.bytebuddy.utility.RandomString;
 
 import org.javarosa.core.model.data.StringData;
+import org.odk.collect.android.formentry.questions.QuestionDetails;
 import org.odk.collect.android.widgets.base.GeneralStringWidgetTest;
-import org.robolectric.RuntimeEnvironment;
 
 /**
  * @author James Knight
@@ -16,7 +16,7 @@ public class StringWidgetTest extends GeneralStringWidgetTest<StringWidget, Stri
     @NonNull
     @Override
     public StringWidget createWidget() {
-        return new StringWidget(RuntimeEnvironment.application, formEntryPrompt, false);
+        return new StringWidget(activity, new QuestionDetails(formEntryPrompt, "formAnalyticsID", readOnlyOverride));
     }
 
     @NonNull

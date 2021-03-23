@@ -1,46 +1,44 @@
 package org.odk.collect.android.widgets;
 
-import android.net.Uri;
+import android.content.Intent;
 import android.provider.MediaStore;
-import android.support.annotation.NonNull;
+import android.view.View;
+
+import androidx.annotation.NonNull;
 
 import net.bytebuddy.utility.RandomString;
 
 import org.javarosa.core.model.data.StringData;
 import org.junit.Before;
+import org.junit.Test;
 import org.mockito.Mock;
-import org.odk.collect.android.utilities.FileUtil;
-import org.odk.collect.android.utilities.MediaUtil;
+import org.odk.collect.android.R;
+import org.odk.collect.android.formentry.questions.QuestionDetails;
+import org.odk.collect.android.utilities.CameraUtils;
+import org.odk.collect.android.utilities.MediaUtils;
 import org.odk.collect.android.widgets.base.FileWidgetTest;
-import org.robolectric.RuntimeEnvironment;
+import org.odk.collect.android.widgets.support.FakeQuestionMediaManager;
+import org.odk.collect.android.widgets.support.FakeWaitingForDataRegistry;
 
-import java.io.File;
-
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * @author James Knight
  */
 public class VideoWidgetTest extends FileWidgetTest<VideoWidget> {
-
     @Mock
-    Uri uri;
-
-    @Mock
-    MediaUtil mediaUtil;
-
-    @Mock
-    FileUtil fileUtil;
-
-    @Mock
-    File file;
+    MediaUtils mediaUtils;
 
     private String destinationName;
 
     @NonNull
     @Override
     public VideoWidget createWidget() {
-        return new VideoWidget(RuntimeEnvironment.application, formEntryPrompt, fileUtil, mediaUtil);
+        return new VideoWidget(activity, new QuestionDetails(formEntryPrompt, "formAnalyticsID", readOnlyOverride), new FakeWaitingForDataRegistry(), new FakeQuestionMediaManager(), new CameraUtils(), mediaUtils);
     }
 
     @NonNull
@@ -49,49 +47,54 @@ public class VideoWidgetTest extends FileWidgetTest<VideoWidget> {
         return new StringData(destinationName);
     }
 
-    @Override
-    public Object createBinaryData(StringData answerData) {
-        return uri;
-    }
-
     @Before
     public void setUp() throws Exception {
         super.setUp();
         destinationName = RandomString.make();
     }
 
-    @Override
-    public void settingANewAnswerShouldCallDeleteMediaToRemoveTheOldFile() {
-        prepareForSetAnswer();
-        super.settingANewAnswerShouldCallDeleteMediaToRemoveTheOldFile();
+    @Test
+    public void buttonsShouldLaunchCorrectIntents() {
+        stubAllRuntimePermissionsGranted(true);
+
+        Intent intent = getIntentLaunchedByClick(R.id.capture_video);
+        assertActionEquals(MediaStore.ACTION_VIDEO_CAPTURE, intent);
+
+        intent = getIntentLaunchedByClick(R.id.choose_video);
+        assertActionEquals(Intent.ACTION_GET_CONTENT, intent);
+        assertTypeEquals("video/*", intent);
+
+        getIntentLaunchedByClick(R.id.play_video);
+        verify(mediaUtils).openFile(any(), any(), any());
     }
 
-    @Override
-    public void getAnswerShouldReturnCorrectAnswerAfterBeingSet() {
-        prepareForSetAnswer();
-        super.getAnswerShouldReturnCorrectAnswerAfterBeingSet();
+    @Test
+    public void buttonsShouldNotLaunchIntentsWhenPermissionsDenied() {
+        stubAllRuntimePermissionsGranted(false);
+
+        assertIntentNotStarted(activity, getIntentLaunchedByClick(R.id.capture_video));
     }
 
-    @Override
-    public void settingANewAnswerShouldRemoveTheOldAnswer() {
-        prepareForSetAnswer();
-        super.settingANewAnswerShouldRemoveTheOldAnswer();
+    @Test
+    public void usingReadOnlyOptionShouldMakeAllClickableElementsDisabled() {
+        when(formEntryPrompt.isReadOnly()).thenReturn(true);
+
+        assertThat(getSpyWidget().captureButton.getVisibility(), is(View.GONE));
+        assertThat(getSpyWidget().chooseButton.getVisibility(), is(View.GONE));
+        assertThat(getSpyWidget().playButton.getVisibility(), is(View.VISIBLE));
+        assertThat(getSpyWidget().playButton.isEnabled(), is(Boolean.FALSE));
+        assertThat(getSpyWidget().playButton.getText(), is("Play Video"));
     }
 
-    public void prepareForSetAnswer() {
+    @Test
+    public void whenReadOnlyOverrideOptionIsUsed_shouldAllClickableElementsBeDisabled() {
+        readOnlyOverride = true;
         when(formEntryPrompt.isReadOnly()).thenReturn(false);
 
-        when(mediaUtil.getPathFromUri(
-                RuntimeEnvironment.application,
-                uri,
-                MediaStore.Video.Media.DATA)
-
-        ).thenReturn(String.format("%s.mp4", RandomString.make()));
-
-        when(fileUtil.getRandomFilename()).thenReturn(destinationName);
-        when(fileUtil.getFileAtPath(String.format("/%s.mp4", destinationName)))
-                .thenReturn(file);
-
-        when(file.getName()).thenReturn(destinationName);
+        assertThat(getSpyWidget().captureButton.getVisibility(), is(View.GONE));
+        assertThat(getSpyWidget().chooseButton.getVisibility(), is(View.GONE));
+        assertThat(getSpyWidget().playButton.getVisibility(), is(View.VISIBLE));
+        assertThat(getSpyWidget().playButton.isEnabled(), is(Boolean.FALSE));
+        assertThat(getSpyWidget().playButton.getText(), is("Play Video"));
     }
 }

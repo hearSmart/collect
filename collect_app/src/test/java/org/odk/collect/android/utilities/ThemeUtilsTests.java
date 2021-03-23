@@ -6,34 +6,30 @@ import android.content.res.TypedArray;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.odk.collect.android.BuildConfig;
 import org.odk.collect.android.R;
+import org.odk.collect.android.TestSettingsProvider;
 import org.odk.collect.android.activities.MainMenuActivity;
-import org.odk.collect.android.preferences.GeneralSharedPreferences;
+import org.odk.collect.android.preferences.source.Settings;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
-import org.robolectric.annotation.Config;
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertNotSame;
-import static org.odk.collect.android.preferences.PreferenceKeys.KEY_APP_THEME;
+import static org.odk.collect.android.preferences.keys.GeneralKeys.KEY_APP_THEME;
 
 /**
  * Unit tests for checking the behaviour of updating themes from User Interface settings
  */
-
-@Config(constants = BuildConfig.class)
 @RunWith(RobolectricTestRunner.class)
 public class ThemeUtilsTests {
 
     private final int[] attrs;
     private ThemeUtils themeUtils;
     private MainMenuActivity mainMenuActivity;
+    private final Settings generalSettings = TestSettingsProvider.getGeneralSettings();
 
     public ThemeUtilsTests() {
         attrs = new int[]{
-                R.attr.primaryTextColor,
-                R.attr.iconColor,
                 android.R.attr.alertDialogTheme,
                 android.R.attr.searchViewStyle,
                 android.R.attr.colorControlNormal
@@ -67,20 +63,20 @@ public class ThemeUtilsTests {
     @Test
     public void correctStylesShouldBeAppliedForLightTheme() {
         applyLightTheme();
-        assertEquals(themeUtils.getAppTheme(), R.style.LightAppTheme);
-        assertEquals(themeUtils.getSettingsTheme(), R.style.AppTheme_SettingsTheme_Light);
-        assertEquals(themeUtils.getBottomDialogTheme(), R.style.LightMaterialDialogSheet);
-        assertEquals(themeUtils.getMaterialDialogTheme(), android.R.style.Theme_Material_Light_Dialog);
+        assertEquals(themeUtils.getAppTheme(), R.style.Theme_Collect_Light);
+        assertEquals(themeUtils.getSettingsTheme(), R.style.Theme_Collect_Settings_Light);
+        assertEquals(themeUtils.getBottomDialogTheme(), R.style.Theme_Collect_MaterialDialogSheet_Light);
+        assertEquals(themeUtils.getMaterialDialogTheme(), R.style.Theme_Collect_Light_Dialog);
         assertEquals(themeUtils.getHoloDialogTheme(), android.R.style.Theme_Holo_Light_Dialog);
     }
 
     @Test
     public void correctStylesShouldBeAppliedForDarkTheme() {
         applyDarkTheme();
-        assertEquals(themeUtils.getAppTheme(), R.style.DarkAppTheme);
-        assertEquals(themeUtils.getSettingsTheme(), R.style.AppTheme_SettingsTheme_Dark);
-        assertEquals(themeUtils.getBottomDialogTheme(), R.style.DarkMaterialDialogSheet);
-        assertEquals(themeUtils.getMaterialDialogTheme(), android.R.style.Theme_Material_Dialog);
+        assertEquals(themeUtils.getAppTheme(), R.style.Theme_Collect_Dark);
+        assertEquals(themeUtils.getSettingsTheme(), R.style.Theme_Collect_Settings_Dark);
+        assertEquals(themeUtils.getBottomDialogTheme(), R.style.Theme_Collect_MaterialDialogSheet_Dark);
+        assertEquals(themeUtils.getMaterialDialogTheme(), R.style.Theme_Collect_Dark_Dialog);
         assertEquals(themeUtils.getHoloDialogTheme(), android.R.style.Theme_Holo_Dialog);
     }
 
@@ -100,11 +96,11 @@ public class ThemeUtilsTests {
     }
 
     private Resources.Theme getDarkTheme() {
-        return createTheme(R.style.DarkAppTheme);
+        return createTheme(R.style.Theme_Collect_Dark);
     }
 
     private Resources.Theme getLightTheme() {
-        return createTheme(R.style.LightAppTheme);
+        return createTheme(R.style.Theme_Collect_Light);
     }
 
     private Resources.Theme createTheme(int styleResId) {
@@ -114,10 +110,10 @@ public class ThemeUtilsTests {
     }
 
     private void applyDarkTheme() {
-        GeneralSharedPreferences.getInstance().save(KEY_APP_THEME, mainMenuActivity.getString(R.string.app_theme_dark));
+        generalSettings.save(KEY_APP_THEME, mainMenuActivity.getString(R.string.app_theme_dark));
     }
 
     private void applyLightTheme() {
-        GeneralSharedPreferences.getInstance().save(KEY_APP_THEME, mainMenuActivity.getString(R.string.app_theme_light));
+        generalSettings.save(KEY_APP_THEME, mainMenuActivity.getString(R.string.app_theme_light));
     }
 }

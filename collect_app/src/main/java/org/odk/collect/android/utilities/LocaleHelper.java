@@ -1,14 +1,8 @@
 package org.odk.collect.android.utilities;
 
-import android.annotation.TargetApi;
-import android.content.Context;
-import android.content.res.Configuration;
-import android.content.res.Resources;
-import android.os.Build;
-import android.preference.PreferenceManager;
-
 import org.odk.collect.android.application.Collect;
-import org.odk.collect.android.preferences.PreferenceKeys;
+import org.odk.collect.android.preferences.keys.GeneralKeys;
+import org.odk.collect.android.preferences.source.Settings;
 
 import java.util.Locale;
 import java.util.TreeMap;
@@ -18,63 +12,14 @@ import java.util.TreeMap;
  *
  * @author abdulwd
  */
-
 public class LocaleHelper {
-
-    // Created based on https://gunhansancar.com/change-language-programmatically-in-android/
-    public Context updateLocale(Context context) {
-        return updateLocale(context, getLocaleCode(context));
-    }
-
-    private Context updateLocale(Context context, String language) {
-        Locale locale = getLocale(language);
-        Locale.setDefault(locale);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            return updateResources(context, language);
-        }
-
-        return updateResourcesLegacy(context, language);
-    }
-
-    private String getLocaleCode(Context context) {
-        String localeCode = PreferenceManager.getDefaultSharedPreferences(context)
-                .getString(PreferenceKeys.KEY_APP_LANGUAGE, "");
+    public static String getLocaleCode(Settings generalSettings) {
+        String localeCode = generalSettings.getString(GeneralKeys.KEY_APP_LANGUAGE);
         boolean isUsingSysLanguage = localeCode.equals("");
         if (isUsingSysLanguage) {
             localeCode = Collect.defaultSysLanguage;
         }
         return localeCode;
-    }
-
-    @TargetApi(Build.VERSION_CODES.N)
-    private Context updateResources(Context context, String language) {
-        Locale locale = getLocale(language);
-        Locale.setDefault(locale);
-
-        Configuration configuration = context.getResources().getConfiguration();
-        configuration.setLocale(locale);
-        configuration.setLayoutDirection(locale);
-
-        return context.createConfigurationContext(configuration);
-    }
-
-    @SuppressWarnings("deprecation")
-    private Context updateResourcesLegacy(Context context, String language) {
-        Locale locale = getLocale(language);
-        Locale.setDefault(locale);
-
-        Resources resources = context.getResources();
-
-        Configuration configuration = resources.getConfiguration();
-        configuration.locale = locale;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            configuration.setLayoutDirection(locale);
-        }
-
-        resources.updateConfiguration(configuration, resources.getDisplayMetrics());
-
-        return context;
     }
 
     public TreeMap<String, String> getEntryListValues() {
@@ -85,6 +30,10 @@ public class LocaleHelper {
             languageList.put(locale.getDisplayName(locale), language);
         }
         return languageList;
+    }
+
+    public Locale getLocale(Settings generalSettings) {
+        return getLocale(getLocaleCode(generalSettings));
     }
 
     private Locale getLocale(String splitLocaleCode) {

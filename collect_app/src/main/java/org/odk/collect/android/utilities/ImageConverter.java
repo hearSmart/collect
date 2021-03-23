@@ -20,38 +20,55 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
-import android.support.media.ExifInterface;
+import androidx.exifinterface.media.ExifInterface;
 
 import org.javarosa.core.model.instance.TreeElement;
 import org.odk.collect.android.R;
-import org.odk.collect.android.preferences.GeneralSharedPreferences;
 import org.odk.collect.android.widgets.QuestionWidget;
 
 import java.io.IOException;
 
 import timber.log.Timber;
 
-import static org.odk.collect.android.preferences.PreferenceKeys.KEY_IMAGE_SIZE;
-import static org.odk.collect.android.utilities.ApplicationConstants.XML_OPENROSA_NAMESPACE;
+import static org.odk.collect.android.utilities.ApplicationConstants.Namespaces.XML_OPENROSA_NAMESPACE;
 
 public class ImageConverter {
 
     private ImageConverter() {
     }
 
-    public static void execute(String imagePath, QuestionWidget questionWidget, Context context) {
+    /**
+     * Before proceed with scaling or rotating, make sure existing exif information is stored/restored.
+     * @author Khuong Ninh (khuong.ninh@it-development.com)
+     */
+    public static void execute(String imagePath, QuestionWidget questionWidget, Context context, String imageSizeMode) {
+        ExifInterface exif = null;
+        try {
+            exif = new ExifInterface(imagePath);
+        } catch (IOException e) {
+            Timber.w(e);
+        }
+
         rotateImageIfNeeded(imagePath);
-        scaleDownImageIfNeeded(imagePath, questionWidget, context);
+        scaleDownImageIfNeeded(imagePath, questionWidget, context, imageSizeMode);
+        
+        if (exif != null) {
+            try {
+                exif.saveAttributes();
+            } catch (IOException e) {
+                Timber.w(e);
+            }
+        }
     }
 
-    private static void scaleDownImageIfNeeded(String imagePath, QuestionWidget questionWidget, Context context) {
+    private static void scaleDownImageIfNeeded(String imagePath, QuestionWidget questionWidget, Context context, String imageSizeMode) {
         Integer maxPixels;
 
         if (questionWidget != null) {
             maxPixels = getMaxPixelsFromFormIfDefined(questionWidget);
 
             if (maxPixels == null) {
-                maxPixels = getMaxPixelsFromSettings(context);
+                maxPixels = getMaxPixelsFromSettings(context, imageSizeMode);
             }
 
             if (maxPixels != null && maxPixels > 0) {
@@ -74,9 +91,8 @@ public class ImageConverter {
         return maxPixels;
     }
 
-    private static Integer getMaxPixelsFromSettings(Context context) {
+    private static Integer getMaxPixelsFromSettings(Context context, String imageSizeMode) {
         Integer maxPixels = null;
-        String imageSizeMode = (String) GeneralSharedPreferences.getInstance().get(KEY_IMAGE_SIZE);
         String[] imageEntryValues = context.getResources().getStringArray(R.array.image_size_entry_values);
         if (!imageSizeMode.equals(imageEntryValues[0])) {
             if (imageSizeMode.equals(imageEntryValues[1])) {
@@ -119,7 +135,7 @@ public class ImageConverter {
 
     /**
      * Sometimes an image might be taken up sideways.
-     * https://github.com/opendatakit/collect/issues/36
+     * https://github.com/getodk/collect/issues/36
      */
     private static void rotateImageIfNeeded(String imagePath) {
         ExifInterface exif = null;
@@ -157,5 +173,10 @@ public class ImageConverter {
             Timber.w(e);
         }
         FileUtils.saveBitmapToFile(image, imagePath);
+    }
+
+    public static Bitmap scaleImageToNewWidth(Bitmap bitmap, int newWidth) {
+        int newHeight = (int) (((double) newWidth / (double) bitmap.getWidth()) * bitmap.getHeight());
+        return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
     }
 }

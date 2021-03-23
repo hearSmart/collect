@@ -12,58 +12,102 @@ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 License for the specific language governing permissions and limitations under
 the License.
 -->
-<RelativeLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/llParent"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-    <!-- Toolbar -->
-    <include
-        layout="@layout/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"/>
 
-    <include
-        layout="@layout/toolbar_action_bar_shadow"
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <com.google.android.material.appbar.MaterialToolbar xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/toolbar"
+            style="@style/Widget.Collect.Toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:elevation="0dp"
+            app:navigationIcon="@drawable/notes" />
+
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/audio_recording_controller"
+            android:name="org.odk.collect.android.audio.AudioRecordingControllerFragment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <org.odk.collect.android.views.ObviousProgressBar
+        android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/toolbar"/>
+        android:layout_below="@+id/appBarLayout"
+        android:layout_marginTop="-7dp"
+        android:indeterminate="true"
+        android:visibility="gone" />
 
-    <LinearLayout
+    <FrameLayout
         android:id="@+id/questionholder"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:layout_above="@+id/buttonholder"
-        android:layout_below="@id/toolbar"
-        android:orientation="horizontal"/>
+        android:layout_below="@id/appBarLayout" />
+
+    <ImageView
+        android:id="@+id/shadow_up"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/buttonholder"
+        android:src="@drawable/shadow_up" />
 
     <LinearLayout
         android:id="@+id/buttonholder"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="48dp"
         android:layout_alignParentBottom="true"
-        android:orientation="horizontal"
-        android:paddingBottom="0dip"
-        android:paddingEnd="4dip"
-        android:paddingLeft="4dip"
-        android:paddingRight="4dip"
-        android:paddingStart="4dip"
-        android:paddingTop="4dip">
+        android:background="?colorPrimary"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-        <ImageButton
+        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/form_back_button"
-            android:layout_width="0dip"
-            android:layout_height="50dip"
-            android:layout_weight="1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
             android:contentDescription="@string/form_backward"
-            android:src="@drawable/navigate_back_button"/>
+            android:drawableStart="@drawable/ic_navigate_back_wrapped"
+            android:focusable="true"
+            android:padding="10dp"
+            android:text="@string/form_backward"
+            android:textAllCaps="true"
+            android:textAppearance="@style/Base.TextAppearance.AppCompat.Subhead"
+            android:textColor="?colorOnPrimary"
+            android:textStyle="bold"
+            android:visibility="gone" />
 
-        <ImageButton
+        <View
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/form_forward_button"
-            android:layout_width="0dip"
-            android:layout_height="50dip"
-            android:layout_weight="1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
             android:contentDescription="@string/form_forward"
-            android:src="@drawable/navigate_forward_button"/>
+            android:drawableEnd="@drawable/ic_navigate_forward_wrapped"
+            android:focusable="true"
+            android:padding="10dp"
+            android:text="@string/form_forward"
+            android:textAllCaps="true"
+            android:textAppearance="@style/Base.TextAppearance.AppCompat.Subhead"
+            android:textColor="?colorOnPrimary"
+            android:textStyle="bold"
+            android:visibility="gone" />
     </LinearLayout>
-
 </RelativeLayout>

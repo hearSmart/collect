@@ -15,43 +15,52 @@ limitations under the License.
 package org.odk.collect.android.fragments;
 
 import android.database.Cursor;
-import android.preference.PreferenceManager;
-import android.support.design.widget.BottomSheetDialog;
-import android.support.v4.app.ListFragment;
-import android.support.v4.view.MenuItemCompat;
-import android.support.v7.widget.DefaultItemAnimator;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.SearchView;
+import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
+
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 
 import org.odk.collect.android.R;
 import org.odk.collect.android.activities.CollectAbstractActivity;
 import org.odk.collect.android.adapters.SortDialogAdapter;
-import org.odk.collect.android.application.Collect;
-import org.odk.collect.android.database.ActivityLogger;
+import org.odk.collect.android.injection.DaggerUtils;
 import org.odk.collect.android.listeners.RecyclerViewClickListener;
-import org.odk.collect.android.provider.InstanceProviderAPI;
+import org.odk.collect.android.preferences.source.SettingsProvider;
+import org.odk.collect.android.provider.InstanceProviderAPI.InstanceColumns;
+import org.odk.collect.android.utilities.MultiClickGuard;
 import org.odk.collect.android.utilities.ThemeUtils;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.widget.SearchView;
+import androidx.core.content.ContextCompat;
+import androidx.core.view.MenuItemCompat;
+import androidx.fragment.app.ListFragment;
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import javax.inject.Inject;
+
 import timber.log.Timber;
 
-import static org.odk.collect.android.utilities.ApplicationConstants.SortingOrder.BY_NAME_ASC;
+public abstract class AppListFragment extends ListFragment {
 
-abstract class AppListFragment extends ListFragment {
+    @Inject
+    SettingsProvider settingsProvider;
 
-    protected final ActivityLogger logger = Collect.getInstance().getActivityLogger();
-    protected String[] sortingOptions;
+    protected int[] sortingOptions;
     protected SimpleCursorAdapter listAdapter;
     protected LinkedHashSet<Long> selectedInstances = new LinkedHashSet<>();
     protected View rootView;
@@ -98,15 +107,31 @@ abstract class AppListFragment extends ListFragment {
     }
 
     @Override
-    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-        Collect.getInstance().getActivityLogger().logInstanceAction(this, "onCreateOptionsMenu", "show");
-        super.onCreateOptionsMenu(menu, inflater);
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        DaggerUtils.getComponent(requireActivity()).inject(this);
+    }
 
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        ListView listView = getListView();
+        listView.setDivider(ContextCompat.getDrawable(getContext(), R.drawable.list_item_divider));
+        listView.setDividerHeight(1);
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        menu.clear();
         inflater.inflate(R.menu.list_menu, menu);
 
         final MenuItem sortItem = menu.findItem(R.id.menu_sort);
         final MenuItem searchItem = menu.findItem(R.id.menu_filter);
         final SearchView searchView = (SearchView) MenuItemCompat.getActionView(searchItem);
+        EditText searchEditText = searchView.findViewById(androidx.appcompat.R.id.search_src_text);
+        searchEditText.setTextColor(new ThemeUtils(getContext()).getColorOnPrimary());
         searchView.setQueryHint(getResources().getString(R.string.search));
         searchView.setMaxWidth(Integer.MAX_VALUE);
 
@@ -144,6 +169,10 @@ abstract class AppListFragment extends ListFragment {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        if (!MultiClickGuard.allowClick(getClass().getName())) {
+            return true;
+        }
+
         switch (item.getItemId()) {
             case R.id.menu_sort:
                 bottomSheetDialog.show();
@@ -199,7 +228,7 @@ abstract class AppListFragment extends ListFragment {
         Cursor cursor = listAdapter.getCursor();
         if (cursor != null && cursor.moveToFirst()) {
             do {
-                long instanceId = cursor.getLong(cursor.getColumnIndex(InstanceProviderAPI.InstanceColumns._ID));
+                long instanceId = cursor.getLong(cursor.getColumnIndex(InstanceColumns._ID));
                 if (selectedInstances.contains(instanceId)) {
                     selectedPositions.add(listViewPosition);
                 }
@@ -246,16 +275,11 @@ abstract class AppListFragment extends ListFragment {
 
     private void saveSelectedSortingOrder(int selectedStringOrder) {
         selectedSortingOrder = selectedStringOrder;
-        PreferenceManager.getDefaultSharedPreferences(Collect.getInstance())
-                .edit()
-                .putInt(getSortingOrderKey(), selectedStringOrder)
-                .apply();
+        settingsProvider.getGeneralSettings().save(getSortingOrderKey(), selectedStringOrder);
     }
 
     protected void restoreSelectedSortingOrder() {
-        selectedSortingOrder = PreferenceManager
-                .getDefaultSharedPreferences(Collect.getInstance())
-                .getInt(getSortingOrderKey(), BY_NAME_ASC);
+        selectedSortingOrder = settingsProvider.getGeneralSettings().getInt(getSortingOrderKey());
     }
 
     protected int getSelectedSortingOrder() {

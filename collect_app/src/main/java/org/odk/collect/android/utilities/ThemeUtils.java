@@ -14,45 +14,78 @@
 
 package org.odk.collect.android.utilities;
 
-import android.annotation.TargetApi;
 import android.content.Context;
-import android.os.Build;
-import android.support.annotation.AttrRes;
-import android.support.annotation.ColorInt;
-import android.support.annotation.DrawableRes;
-import android.support.annotation.StyleRes;
 import android.util.TypedValue;
 
+import androidx.annotation.AttrRes;
+import androidx.annotation.ColorInt;
+import androidx.annotation.DrawableRes;
+import androidx.annotation.StyleRes;
+
 import org.odk.collect.android.R;
-import org.odk.collect.android.preferences.GeneralSharedPreferences;
-import org.odk.collect.android.preferences.PreferenceKeys;
+import org.odk.collect.android.injection.DaggerUtils;
+import org.odk.collect.android.preferences.keys.GeneralKeys;
+import org.odk.collect.android.preferences.source.SettingsProvider;
+
+import javax.inject.Inject;
 
 public final class ThemeUtils {
+
+    @Inject
+    SettingsProvider settingsProvider;
 
     private final Context context;
 
     public ThemeUtils(Context context) {
+        DaggerUtils.getComponent(context).inject(this);
         this.context = context;
     }
 
     @StyleRes
     public int getAppTheme() {
-        return isDarkTheme() ? R.style.DarkAppTheme : R.style.LightAppTheme;
+        if (isMagentaEnabled()) {
+            return R.style.Theme_Collect_Magenta;
+        } else {
+            String theme = getPrefsTheme();
+            if (theme.equals(context.getString(R.string.app_theme_dark))) {
+                return R.style.Theme_Collect_Dark;
+            } else {
+                return R.style.Theme_Collect_Light;
+            }
+        }
     }
 
     @StyleRes
     public int getFormEntryActivityTheme() {
-        return isDarkTheme() ? R.style.FormEntryActivityDarkTheme : R.style.FormEntryActivityLightTheme;
+        if (isMagentaEnabled()) {
+            return R.style.Theme_Collect_Activity_FormEntryActivity_Magenta;
+        } else {
+            String theme = getPrefsTheme();
+            if (theme.equals(context.getString(R.string.app_theme_dark))) {
+                return R.style.Theme_Collect_Activity_FormEntryActivity_Dark;
+            } else {
+                return R.style.Theme_Collect_Activity_FormEntryActivity_Light;
+            }
+        }
     }
 
     @StyleRes
     public int getSettingsTheme() {
-        return isDarkTheme() ? R.style.AppTheme_SettingsTheme_Dark : R.style.AppTheme_SettingsTheme_Light;
+        if (isMagentaEnabled()) {
+            return R.style.Theme_Collect_Settings_Magenta;
+        } else {
+            String theme = getPrefsTheme();
+            if (theme.equals(context.getString(R.string.app_theme_dark))) {
+                return R.style.Theme_Collect_Settings_Dark;
+            } else {
+                return R.style.Theme_Collect_Settings_Light;
+            }
+        }
     }
 
     @StyleRes
     public int getBottomDialogTheme() {
-        return isDarkTheme() ? R.style.DarkMaterialDialogSheet : R.style.LightMaterialDialogSheet;
+        return isDarkTheme() ? R.style.Theme_Collect_MaterialDialogSheet_Dark : R.style.Theme_Collect_MaterialDialogSheet_Light;
     }
 
     @DrawableRes
@@ -65,12 +98,11 @@ public final class ThemeUtils {
                 theme == android.R.style.Theme_Holo_Dialog;
     }
 
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @StyleRes
     public int getMaterialDialogTheme() {
-        return isDarkTheme() ?
-                android.R.style.Theme_Material_Dialog :
-                android.R.style.Theme_Material_Light_Dialog;
+        return isDarkTheme()
+                ? R.style.Theme_Collect_Dark_Dialog
+                : R.style.Theme_Collect_Light_Dialog;
     }
 
     @StyleRes
@@ -91,39 +123,48 @@ public final class ThemeUtils {
     }
 
     public boolean isDarkTheme() {
-        String theme = (String) GeneralSharedPreferences.getInstance().get(PreferenceKeys.KEY_APP_THEME);
+        String theme = getPrefsTheme();
         return theme.equals(context.getString(R.string.app_theme_dark));
+    }
+
+    private boolean isMagentaEnabled() {
+        return settingsProvider.getGeneralSettings().getBoolean(GeneralKeys.KEY_MAGENTA_THEME);
+    }
+
+    private String getPrefsTheme() {
+        return settingsProvider.getGeneralSettings().getString(GeneralKeys.KEY_APP_THEME);
     }
 
     /**
      * @return Text color for the current {@link android.content.res.Resources.Theme}
      */
     @ColorInt
-    public int getPrimaryTextColor() {
-        return getAttributeValue(R.attr.primaryTextColor);
+    public int getColorOnSurface() {
+        return getAttributeValue(R.attr.colorOnSurface);
     }
 
-    /**
-     * @return Accent color for the current {@link android.content.res.Resources.Theme}
-     */
     @ColorInt
     public int getAccentColor() {
         return getAttributeValue(R.attr.colorAccent);
     }
 
-    /**
-     * @return Icon color for the current {@link android.content.res.Resources.Theme}
-     */
     @ColorInt
     public int getIconColor() {
-        return getAttributeValue(R.attr.iconColor);
+        return getAttributeValue(R.attr.colorOnSurface);
     }
 
-    /**
-     * @return Rank item color for the current {@link android.content.res.Resources.Theme}
-     */
     @ColorInt
-    public int getRankItemColor() {
-        return getAttributeValue(R.attr.rankItemColor);
+    public int getColorPrimary() {
+        return getAttributeValue(R.attr.colorPrimary);
+    }
+
+    @ColorInt
+    public int getColorOnPrimary() {
+        return getAttributeValue(R.attr.colorOnPrimary);
+    }
+
+    @ColorInt
+    public int getColorSecondary() {
+        return getAttributeValue(R.attr.colorSecondary);
     }
 }

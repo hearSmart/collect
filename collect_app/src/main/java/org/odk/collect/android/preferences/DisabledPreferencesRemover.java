@@ -16,22 +16,24 @@
 
 package org.odk.collect.android.preferences;
 
-import android.preference.Preference;
-import android.preference.PreferenceFragment;
-import android.preference.PreferenceGroup;
+import androidx.preference.Preference;
+import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.PreferenceGroup;
+
+import org.odk.collect.android.preferences.keys.AdminAndGeneralKeys;
+import org.odk.collect.android.preferences.keys.GeneralKeys;
+import org.odk.collect.android.preferences.source.Settings;
 
 import timber.log.Timber;
 
-import static org.odk.collect.android.preferences.PreferencesActivity.INTENT_KEY_ADMIN_MODE;
+public class DisabledPreferencesRemover {
 
-class DisabledPreferencesRemover {
+    private final PreferenceFragmentCompat pf;
+    private final Settings adminSettings;
 
-    private final PreferencesActivity pa;
-    private final PreferenceFragment pf;
-
-    DisabledPreferencesRemover(PreferencesActivity pa, PreferenceFragment pf) {
-        this.pa = pa;
+    public DisabledPreferencesRemover(PreferenceFragmentCompat pf, Settings adminSettings) {
         this.pf = pf;
+        this.adminSettings = adminSettings;
     }
 
     /**
@@ -39,9 +41,9 @@ class DisabledPreferencesRemover {
      *
      * @param keyPairs one or more AdminAndGeneralKeys objects.
      */
-    void remove(AdminAndGeneralKeys... keyPairs) {
+    public void remove(AdminAndGeneralKeys... keyPairs) {
         for (AdminAndGeneralKeys agKeys : keyPairs) {
-            boolean prefAllowed = (boolean) AdminSharedPreferences.getInstance().get(agKeys.adminKey);
+            boolean prefAllowed = adminSettings.getBoolean(agKeys.adminKey);
 
             if (!prefAllowed) {
                 Preference preference = pf.findPreference(agKeys.generalKey);
@@ -85,15 +87,13 @@ class DisabledPreferencesRemover {
     /**
      * Deletes all empty PreferenceCategory items.
      */
-    void removeEmptyCategories() {
+    public void removeEmptyCategories() {
         removeEmptyCategories(pf.getPreferenceScreen());
         removeEmptyCategories(pf.getPreferenceScreen());
     }
 
     private void removeEmptyCategories(PreferenceGroup pc) {
-
-        final boolean adminMode = pa.getIntent().getBooleanExtra(INTENT_KEY_ADMIN_MODE, false);
-        if (adminMode || pc == null) {
+        if (pc == null) {
             return;
         }
 
@@ -127,8 +127,8 @@ class DisabledPreferencesRemover {
      */
     private boolean hasChildPrefs(String preferenceKey) {
         String[] preferenceScreensWithNoChildren = {
-                PreferenceKeys.KEY_SPLASH_PATH,
-                PreferenceKeys.KEY_FORM_METADATA
+                GeneralKeys.KEY_SPLASH_PATH,
+                GeneralKeys.KEY_FORM_METADATA
         };
 
         for (String pref : preferenceScreensWithNoChildren) {

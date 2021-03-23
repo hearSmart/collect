@@ -16,11 +16,9 @@
 
 package org.odk.collect.android.fragments.dialogs;
 
-import org.javarosa.core.model.FormIndex;
 import org.joda.time.LocalDateTime;
 import org.joda.time.chrono.EthiopicChronology;
 import org.odk.collect.android.R;
-import org.odk.collect.android.logic.DatePickerDetails;
 import org.odk.collect.android.utilities.DateTimeUtils;
 
 import java.util.Arrays;
@@ -35,13 +33,6 @@ public class EthiopianDatePickerDialog extends CustomDatePickerDialog {
 
     private String[] monthsArray;
 
-    public static EthiopianDatePickerDialog newInstance(FormIndex formIndex, LocalDateTime date, DatePickerDetails datePickerDetails) {
-        EthiopianDatePickerDialog dialog = new EthiopianDatePickerDialog();
-        dialog.setArguments(getArgs(formIndex, date, datePickerDetails));
-
-        return dialog;
-    }
-
     @Override
     public void onResume() {
         super.onResume();
@@ -51,7 +42,8 @@ public class EthiopianDatePickerDialog extends CustomDatePickerDialog {
 
     @Override
     protected void updateDays() {
-        setUpDayPicker(getCurrentEthiopianDate());
+        LocalDateTime localDateTime = getCurrentEthiopianDate();
+        setUpDayPicker(localDateTime.getDayOfMonth(), localDateTime.dayOfMonth().getMaximumValue());
     }
 
     @Override
@@ -65,9 +57,9 @@ public class EthiopianDatePickerDialog extends CustomDatePickerDialog {
                 .toDateTime()
                 .withChronology(EthiopicChronology.getInstance())
                 .toLocalDateTime();
-        setUpDayPicker(ethiopianDate);
-        setUpMonthPicker(ethiopianDate, monthsArray);
-        setUpYearPicker(ethiopianDate, MIN_SUPPORTED_YEAR, MAX_SUPPORTED_YEAR);
+        setUpDayPicker(ethiopianDate.getDayOfMonth(), ethiopianDate.dayOfMonth().getMaximumValue());
+        setUpMonthPicker(ethiopianDate.getMonthOfYear(), monthsArray);
+        setUpYearPicker(ethiopianDate.getYear(), MIN_SUPPORTED_YEAR, MAX_SUPPORTED_YEAR);
     }
 
     private void setUpValues() {
@@ -83,6 +75,9 @@ public class EthiopianDatePickerDialog extends CustomDatePickerDialog {
         LocalDateTime ethiopianDate = new LocalDateTime(ethiopianYear, ethiopianMonth + 1, 1, 0, 0, 0, 0, EthiopicChronology.getInstance());
         if (ethiopianDay > ethiopianDate.dayOfMonth().getMaximumValue()) {
             ethiopianDay = ethiopianDate.dayOfMonth().getMaximumValue();
+        }
+        if (ethiopianDay < ethiopianDate.dayOfMonth().getMinimumValue()) {
+            ethiopianDay = ethiopianDate.dayOfMonth().getMinimumValue();
         }
 
         return new LocalDateTime(ethiopianYear, ethiopianMonth + 1, ethiopianDay, 0, 0, 0, 0, EthiopicChronology.getInstance());

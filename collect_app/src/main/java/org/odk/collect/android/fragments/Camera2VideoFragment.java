@@ -16,7 +16,6 @@ package org.odk.collect.android.fragments;
  * limitations under the License.
  */
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Fragment;
 import android.content.Context;
@@ -34,12 +33,11 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.MediaRecorder;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.support.annotation.NonNull;
-import android.support.v13.app.FragmentCompat;
+import androidx.annotation.NonNull;
+import androidx.legacy.app.FragmentCompat;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.LayoutInflater;
@@ -49,9 +47,9 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import org.odk.collect.android.R;
-import org.odk.collect.android.application.Collect;
 import org.odk.collect.android.fragments.dialogs.ErrorDialog;
-import org.odk.collect.android.utilities.CameraUtils;
+import org.odk.collect.android.storage.StoragePathProvider;
+import org.odk.collect.android.utilities.MultiClickGuard;
 import org.odk.collect.android.utilities.ToastUtils;
 
 import java.io.File;
@@ -67,7 +65,6 @@ import timber.log.Timber;
 /*https://github.com/googlesamples/android-Camera2Video/blob/master/Application/src/main/java/com/
  example/android/camera2video/Camera2VideoFragment.java*/
 
-@TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class Camera2VideoFragment extends Fragment
         implements View.OnClickListener, FragmentCompat.OnRequestPermissionsResultCallback {
 
@@ -297,7 +294,7 @@ public class Camera2VideoFragment extends Fragment
     @Override
     public void onClick(View view) {
         if (view.getId() == R.id.texture) {
-            if (Collect.allowClick()) { // avoid multiple quick taps that may cause various problems
+            if (MultiClickGuard.allowClick(getClass().getName())) { // avoid multiple quick taps that may cause various problems
                 if (isRecordingVideo) {
                     textureView.setClickable(false);
                     stopRecordingVideo();
@@ -503,7 +500,7 @@ public class Camera2VideoFragment extends Fragment
         mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
         mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         if (nextVideoAbsolutePath == null || nextVideoAbsolutePath.isEmpty()) {
-            nextVideoAbsolutePath = CameraUtils.getVideoFilePath(getActivity());
+            nextVideoAbsolutePath = new StoragePathProvider().getTmpVideoFilePath();
         }
         mediaRecorder.setOutputFile(nextVideoAbsolutePath);
         mediaRecorder.setVideoEncodingBitRate(10000000);
@@ -597,7 +594,7 @@ public class Camera2VideoFragment extends Fragment
 
         Activity activity = getActivity();
         if (null != activity) {
-            Timber.d("Video saved: " + nextVideoAbsolutePath);
+            Timber.d("Video saved: %s", nextVideoAbsolutePath);
         }
         Intent i = new Intent();
         i.setData(Uri.fromFile(new File(nextVideoAbsolutePath)));

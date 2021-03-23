@@ -18,58 +18,56 @@ package org.odk.collect.android.activities;
 
 import android.database.Cursor;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
-import android.support.annotation.LayoutRes;
-import android.support.annotation.NonNull;
-import android.support.design.widget.BottomSheetDialog;
-import android.support.v4.view.MenuItemCompat;
-import android.support.v7.widget.DefaultItemAnimator;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.SearchView;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.CursorAdapter;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+
 import org.odk.collect.android.R;
 import org.odk.collect.android.adapters.SortDialogAdapter;
-import org.odk.collect.android.application.Collect;
-import org.odk.collect.android.database.ActivityLogger;
 import org.odk.collect.android.listeners.RecyclerViewClickListener;
-import org.odk.collect.android.provider.InstanceProviderAPI;
+import org.odk.collect.android.provider.InstanceProviderAPI.InstanceColumns;
+import org.odk.collect.android.utilities.MultiClickGuard;
 import org.odk.collect.android.utilities.SnackbarUtils;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 
+import androidx.annotation.LayoutRes;
+import androidx.annotation.NonNull;
+import androidx.appcompat.widget.SearchView;
+import androidx.core.content.ContextCompat;
+import androidx.core.view.MenuItemCompat;
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import timber.log.Timber;
 
-import static org.odk.collect.android.utilities.ApplicationConstants.SortingOrder.BY_NAME_ASC;
-
 abstract class AppListActivity extends CollectAbstractActivity {
+
     protected static final int LOADER_ID = 0x01;
     private static final String SELECTED_INSTANCES = "selectedInstances";
     private static final String IS_SEARCH_BOX_SHOWN = "isSearchBoxShown";
-    private static final String IS_BOTTOM_DIALOG_SHOWN = "isBottomDialogShown";
     private static final String SEARCH_TEXT = "searchText";
 
-    protected final ActivityLogger logger = Collect.getInstance().getActivityLogger();
     protected CursorAdapter listAdapter;
     protected LinkedHashSet<Long> selectedInstances = new LinkedHashSet<>();
-    protected String[] sortingOptions;
+    protected int[] sortingOptions;
     protected Integer selectedSortingOrder;
     protected ListView listView;
     protected LinearLayout llParent;
     protected ProgressBar progressBar;
     private BottomSheetDialog bottomSheetDialog;
-    private boolean isBottomDialogShown;
 
     private String filterText;
     private String savedFilterText;
@@ -129,6 +127,10 @@ abstract class AppListActivity extends CollectAbstractActivity {
         progressBar = findViewById(R.id.progressBar);
         llParent = findViewById(R.id.llParent);
 
+        // Use the nicer-looking drawable with Material Design insets.
+        listView.setDivider(ContextCompat.getDrawable(this, R.drawable.list_item_divider));
+        listView.setDividerHeight(1);
+
         setSupportActionBar(findViewById(R.id.toolbar));
     }
 
@@ -136,24 +138,18 @@ abstract class AppListActivity extends CollectAbstractActivity {
     protected void onResume() {
         super.onResume();
         restoreSelectedSortingOrder();
-        setupBottomSheet();
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putSerializable(SELECTED_INSTANCES, selectedInstances);
-        outState.putBoolean(IS_BOTTOM_DIALOG_SHOWN, bottomSheetDialog.isShowing());
 
         if (searchView != null) {
             outState.putBoolean(IS_SEARCH_BOX_SHOWN, !searchView.isIconified());
             outState.putString(SEARCH_TEXT, String.valueOf(searchView.getQuery()));
         } else {
             Timber.e("Unexpected null search view (issue #1412)");
-        }
-
-        if (bottomSheetDialog.isShowing()) {
-            bottomSheetDialog.dismiss();
         }
     }
 
@@ -162,7 +158,6 @@ abstract class AppListActivity extends CollectAbstractActivity {
         super.onRestoreInstanceState(state);
         selectedInstances = (LinkedHashSet<Long>) state.getSerializable(SELECTED_INSTANCES);
         isSearchBoxShown = state.getBoolean(IS_SEARCH_BOX_SHOWN);
-        isBottomDialogShown = state.getBoolean(IS_BOTTOM_DIALOG_SHOWN);
         savedFilterText = state.getString(SEARCH_TEXT);
     }
 
@@ -172,6 +167,8 @@ abstract class AppListActivity extends CollectAbstractActivity {
         final MenuItem sortItem = menu.findItem(R.id.menu_sort);
         final MenuItem searchItem = menu.findItem(R.id.menu_filter);
         searchView = (SearchView) MenuItemCompat.getActionView(searchItem);
+        EditText searchEditText = searchView.findViewById(androidx.appcompat.R.id.search_src_text);
+        searchEditText.setTextColor(themeUtils.getColorOnPrimary());
         searchView.setQueryHint(getResources().getString(R.string.search));
         searchView.setMaxWidth(Integer.MAX_VALUE);
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
@@ -214,12 +211,16 @@ abstract class AppListActivity extends CollectAbstractActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        if (!MultiClickGuard.allowClick(getClass().getName())) {
+            return true;
+        }
+
         switch (item.getItemId()) {
             case R.id.menu_sort:
-                bottomSheetDialog.show();
-                isBottomDialogShown = true;
+                showBottomSheetDialog();
                 return true;
         }
+
         return super.onOptionsItemSelected(item);
     }
 
@@ -235,7 +236,7 @@ abstract class AppListActivity extends CollectAbstractActivity {
         Cursor cursor = listAdapter.getCursor();
         if (cursor != null && cursor.moveToFirst()) {
             do {
-                long instanceId = cursor.getLong(cursor.getColumnIndex(InstanceProviderAPI.InstanceColumns._ID));
+                long instanceId = cursor.getLong(cursor.getColumnIndex(InstanceColumns._ID));
                 if (selectedInstances.contains(instanceId)) {
                     selectedPositions.add(listViewPosition);
                 }
@@ -262,16 +263,11 @@ abstract class AppListActivity extends CollectAbstractActivity {
 
     private void saveSelectedSortingOrder(int selectedStringOrder) {
         selectedSortingOrder = selectedStringOrder;
-        PreferenceManager.getDefaultSharedPreferences(Collect.getInstance())
-                .edit()
-                .putInt(getSortingOrderKey(), selectedStringOrder)
-                .apply();
+        settingsProvider.getGeneralSettings().save(getSortingOrderKey(), selectedStringOrder);
     }
 
     protected void restoreSelectedSortingOrder() {
-        selectedSortingOrder = PreferenceManager
-                .getDefaultSharedPreferences(Collect.getInstance())
-                .getInt(getSortingOrderKey(), BY_NAME_ASC);
+        selectedSortingOrder = settingsProvider.getGeneralSettings().getInt(getSortingOrderKey());
     }
 
     protected int getSelectedSortingOrder() {
@@ -289,7 +285,7 @@ abstract class AppListActivity extends CollectAbstractActivity {
         searchView.setQuery("", false);
     }
 
-    private void setupBottomSheet() {
+    private void showBottomSheetDialog() {
         bottomSheetDialog = new BottomSheetDialog(this, themeUtils.getBottomDialogTheme());
         final View sheetView = getLayoutInflater().inflate(R.layout.bottom_sheet, null);
         final RecyclerView recyclerView = sheetView.findViewById(R.id.recyclerView);
@@ -300,7 +296,6 @@ abstract class AppListActivity extends CollectAbstractActivity {
                 holder.updateItemColor(selectedSortingOrder);
                 performSelectedSearch(position);
                 bottomSheetDialog.dismiss();
-                isBottomDialogShown = false;
             }
         });
         RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(getApplicationContext());
@@ -309,14 +304,11 @@ abstract class AppListActivity extends CollectAbstractActivity {
         recyclerView.setItemAnimator(new DefaultItemAnimator());
 
         bottomSheetDialog.setContentView(sheetView);
-
-        if (isBottomDialogShown) {
-            bottomSheetDialog.show();
-        }
+        bottomSheetDialog.show();
     }
 
     protected void showSnackbar(@NonNull String result) {
-        SnackbarUtils.showSnackbar(llParent, result);
+        SnackbarUtils.showShortSnackbar(llParent, result);
     }
 
     protected void hideProgressBarIfAllowed() {
