@@ -18,7 +18,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.Gravity;

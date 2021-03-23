@@ -1,7 +1,7 @@
 package org.odk.collect.android.architecture.rx;
 
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.trello.rxlifecycle2.LifecycleTransformer;
 import com.trello.rxlifecycle2.OutsideLifecycleException;

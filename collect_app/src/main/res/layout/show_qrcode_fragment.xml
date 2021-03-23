@@ -12,6 +12,7 @@
      the License.
 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
@@ -81,7 +82,7 @@
             android:layout_height="match_parent"
             android:layout_margin="10dp"
             android:src="@android:drawable/ic_dialog_alert"
-            android:tint="#ffff00" />
+            app:tint="#ffff00" />
 
         <TextView
             android:id="@+id/tvPasswordWarning"

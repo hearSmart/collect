@@ -22,7 +22,7 @@ import android.os.Bundle;
 import android.preference.CheckBoxPreference;
 import android.preference.Preference;
 import android.preference.PreferenceManager;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;;
 import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;

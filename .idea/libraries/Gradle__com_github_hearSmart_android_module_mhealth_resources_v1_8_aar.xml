@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: com.github.hearSmart:android-module-mhealth-resources:v1.8@aar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/68810bd578a73a62c9f53e45699e8395/jetified-android-module-mhealth-resources-v1.8/jars/classes.jar!/" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/68810bd578a73a62c9f53e45699e8395/jetified-android-module-mhealth-resources-v1.8/res" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/68810bd578a73a62c9f53e45699e8395/jetified-android-module-mhealth-resources-v1.8/AndroidManifest.xml" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

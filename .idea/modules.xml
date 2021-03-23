@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ODKMhealth2021.iml" filepath="$PROJECT_DIR$/.idea/modules/ODKMhealth2021.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/analytics/ODKMhealth2021.analytics.iml" filepath="$PROJECT_DIR$/.idea/modules/analytics/ODKMhealth2021.analytics.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/async/ODKMhealth2021.async.iml" filepath="$PROJECT_DIR$/.idea/modules/async/ODKMhealth2021.async.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/audioclips/ODKMhealth2021.audioclips.iml" filepath="$PROJECT_DIR$/.idea/modules/audioclips/ODKMhealth2021.audioclips.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/audiorecorder/ODKMhealth2021.audiorecorder.iml" filepath="$PROJECT_DIR$/.idea/modules/audiorecorder/ODKMhealth2021.audiorecorder.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/collect_app/ODKMhealth2021.collect_app.iml" filepath="$PROJECT_DIR$/.idea/modules/collect_app/ODKMhealth2021.collect_app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/material/ODKMhealth2021.material.iml" filepath="$PROJECT_DIR$/.idea/modules/material/ODKMhealth2021.material.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/nbistubs/ODKMhealth2021.nbistubs.iml" filepath="$PROJECT_DIR$/.idea/modules/nbistubs/ODKMhealth2021.nbistubs.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/shared/ODKMhealth2021.shared.iml" filepath="$PROJECT_DIR$/.idea/modules/shared/ODKMhealth2021.shared.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/strings/ODKMhealth2021.strings.iml" filepath="$PROJECT_DIR$/.idea/modules/strings/ODKMhealth2021.strings.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/testshared/ODKMhealth2021.testshared.iml" filepath="$PROJECT_DIR$/.idea/modules/testshared/ODKMhealth2021.testshared.iml" />
+    </modules>
+  </component>
+</project>

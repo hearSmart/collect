@@ -1,0 +1,15 @@
+<component name="libraryTable">
+  <library name="Gradle: net.danlew:android.joda:2.10.9@aar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/d3e436f994a37ab0ec11decd5c7a61d9/jetified-android.joda-2.10.9/jars/classes.jar!/" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/d3e436f994a37ab0ec11decd5c7a61d9/jetified-android.joda-2.10.9/res" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/d3e436f994a37ab0ec11decd5c7a61d9/jetified-android.joda-2.10.9/AndroidManifest.xml" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/net.danlew/android.joda/2.10.9/756b4961449842fd9537010e691657d9f62c5f68/android.joda-2.10.9-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/net.danlew/android.joda/2.10.9/376df15a3fe0f9d374b4517378f70183e48cf6af/android.joda-2.10.9-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

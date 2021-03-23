@@ -2,17 +2,18 @@ package org.odk.collect.android.mhealthintegration;
 
 import android.content.Context;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;;
 import android.util.Log;
 
 import com.google.gson.Gson;
-import com.hearxgroup.encryption.Logger;
-import com.hearxgroup.hearx.Constants;
+import com.hearxgroup.mhealth.resources.Const;
 import com.hearxgroup.mhealthintegration.Models.HeartestTest;
 import com.hearxgroup.mhealthintegration.Models.MHealthTestRequest;
 import com.hearxgroup.mhealthintegration.Models.Patient;
 import com.hearxgroup.mhealthintegration.TestRequestHelper;
 import com.hearxgroup.mhealthintegration.Util;
+import com.hearxgroup.ptatest.Constants;
+import com.hearxgroup.ptatest.Logger;
 
 import org.javarosa.core.model.FormIndex;
 import org.javarosa.core.model.IFormElement;
@@ -73,7 +74,7 @@ public class MHealthUtil {
         for(int k=0; k<htTest.getFrequencyResults().length; k++) {
             String ptaKey;
             String noiseKey;
-            if(htTest.getFrequencyResults()[k].getEar()== com.hearxgroup.hearx.Constants.EAR_LEFT) {
+            if(htTest.getFrequencyResults()[k].getEar()== Constants.INSTANCE.getEAR_LEFT()) {
                 ptaKey = "pta_l_";
                 noiseKey = "amb_l_";
             }
@@ -92,13 +93,13 @@ public class MHealthUtil {
                     ptaKey+="1k";
                     noiseKey+="1k";
                     if(htTest.getFrequencyResults()[k].isConditionTone()) {
-                        if(htTest.getFrequencyResults()[k].getEar()== com.hearxgroup.hearx.Constants.EAR_LEFT)
+                        if(htTest.getFrequencyResults()[k].getEar()== Constants.INSTANCE.getEAR_LEFT())
                             condition1kL = htTest.getFrequencyResults()[k].getThreshold();
                         else
                             condition1kR = htTest.getFrequencyResults()[k].getThreshold();
                     }
                     else {
-                        if(htTest.getFrequencyResults()[k].getEar()== com.hearxgroup.hearx.Constants.EAR_LEFT)
+                        if(htTest.getFrequencyResults()[k].getEar()== Constants.INSTANCE.getEAR_LEFT())
                             norm1kL = htTest.getFrequencyResults()[k].getThreshold();
                         else
                             norm1kR = htTest.getFrequencyResults()[k].getThreshold();
@@ -148,12 +149,12 @@ public class MHealthUtil {
                         testId, //UNIQUE TEST ID
                         "org.odk.collect.mhealthtest", //ACTION NAME AS DEFINED IN YOUR MANIFEST
                         patient,
-                        Constants.INDEX_HEARTEST); //PATIENT OBJECT OR NULL
+                        Const.TEST.HEARTEST); //PATIENT OBJECT OR NULL
         //UTILITY TO HELP YOU VALIDATE YOUR TEST REQUEST
         String requestValidationResponse = Util.validateTestRequest(context, testRequest);
         if(requestValidationResponse==null)
             //VALIDATION WAS PASSED, INITIATE TEST REQUEST
-            TestRequestHelper.startTest(context, testRequest);
+            TestRequestHelper.INSTANCE.startTest(context, testRequest);
         else
             //VALIDATION ERROR OCCURRED
             Log.e("requestMHTest", "Validation error:"+requestValidationResponse);

@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="Gradle: ./collect_app/libs/httpclientandroidlib-4.5.2-2.jar">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/collect_app/libs/httpclientandroidlib-4.5.2-2.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

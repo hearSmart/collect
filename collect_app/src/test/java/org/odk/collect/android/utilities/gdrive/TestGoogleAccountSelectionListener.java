@@ -1,6 +1,6 @@
 package org.odk.collect.android.utilities.gdrive;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;;
 
 /**
  * @author Shobhit Agarwal

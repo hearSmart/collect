@@ -23,7 +23,7 @@ import android.content.Intent;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.provider.MediaStore.Images;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;;
 import android.util.DisplayMetrics;
 import android.view.MotionEvent;
 import android.view.View;

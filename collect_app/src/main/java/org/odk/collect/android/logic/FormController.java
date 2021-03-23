@@ -14,7 +14,7 @@
 
 package org.odk.collect.android.logic;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;;
 import android.util.Log;
 
 import org.javarosa.core.model.CoreModelModule;

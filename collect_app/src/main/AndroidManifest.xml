@@ -96,7 +96,7 @@ the specific language governing permissions and limitations under the License.
             android:authorities="org.odk.collect.android.provider.odk.instances"
             android:exported="true" />
         <provider
-            android:name="android.support.v4.content.FileProvider"
+            android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
             android:exported="false"
             android:grantUriPermissions="true">
@@ -124,7 +124,7 @@ the specific language governing permissions and limitations under the License.
             android:name=".activities.FormEntryActivity"
             android:configChanges="orientation"
             android:windowSoftInputMode="adjustResize">
-            <intent-filter>
+            <intent-filter tools:ignore="AppLinkUrlError">
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.EDIT" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -146,7 +146,7 @@ the specific language governing permissions and limitations under the License.
             android:configChanges="orientation|screenSize"
             android:windowSoftInputMode="stateHidden" />
         <activity android:name=".activities.InstanceChooserList">
-            <intent-filter>
+            <intent-filter tools:ignore="AppLinkUrlError">
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.EDIT" />
 
@@ -156,7 +156,7 @@ the specific language governing permissions and limitations under the License.
             </intent-filter>
         </activity>
         <activity android:name=".activities.FormChooserList">
-            <intent-filter>
+            <intent-filter tools:ignore="AppLinkUrlError">
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.EDIT" />
                 <action android:name="android.intent.action.PICK" />

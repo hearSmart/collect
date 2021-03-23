@@ -27,7 +27,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.preference.PreferenceManager;
-import android.support.v7.widget.Toolbar;
+import androidx.appcompat.widget.Toolbar;
 import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -46,10 +46,12 @@ import com.google.android.gms.analytics.GoogleAnalytics;
 import com.google.firebase.crash.FirebaseCrash;
 import com.hearxgroup.mhealthintegration.Contracts.MHealthTestRetrieverContract;
 import com.hearxgroup.mhealthintegration.Models.Facility;
+import com.hearxgroup.mhealthintegration.Models.HearriskTest;
 import com.hearxgroup.mhealthintegration.Models.HearscreenTest;
+import com.hearxgroup.mhealthintegration.Models.HearspeechTest;
 import com.hearxgroup.mhealthintegration.Models.HeartestTest;
 import com.hearxgroup.mhealthintegration.Models.Patient;
-import com.hearxgroup.mhealthintegration.Models.PeekAcuityTest;
+import com.hearxgroup.mhealthintegration.Models.VulaVisionTest;
 import com.hearxgroup.mhealthintegration.TestRequestHelper;
 import com.hearxgroup.mhealthintegration.TestRetrievers.MHealthContentRetriever;
 
@@ -361,18 +363,18 @@ public class MainMenuActivity extends CollectAbstractActivity implements MHealth
         Log.d(TAG, "onNewIntent");
 
         Collect.bundleHearTest = null;
-        if(TestRequestHelper.getGeneratedTestIdFromIntent(intent)!=null) { //RETURN FROM AN MHEALTH TEST REQUEST OCCURRED
+        if(TestRequestHelper.INSTANCE.getGeneratedTestIdFromIntent(intent)!=null) { //RETURN FROM AN MHEALTH TEST REQUEST OCCURRED
             Log.d(TAG, "TestRequestHelper.getGeneratedTestIdFromIntent(intent)!=null");
-            mHealthGeneratedTestId = TestRequestHelper.getGeneratedTestIdFromIntent(intent);
+            mHealthGeneratedTestId = TestRequestHelper.INSTANCE.getGeneratedTestIdFromIntent(intent);
             Intent testIntent = intent;
             Single.timer(500, TimeUnit.MILLISECONDS)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(timeup -> {
-                        TestRequestHelper.retrieveTestResult(
+                        TestRequestHelper.INSTANCE.retrieveTestResult(
                                 MainMenuActivity.this,
                                 getLoaderManager(),
                                 MainMenuActivity.this,
-                                TestRequestHelper.getTestTypeFromIntent(testIntent),
+                                TestRequestHelper.INSTANCE.getTestTypeFromIntent(testIntent),
                                 mHealthGeneratedTestId);
                     });
             Log.d(TAG, "mHealthGeneratedTestId: "+mHealthGeneratedTestId);
@@ -774,8 +776,18 @@ public class MainMenuActivity extends CollectAbstractActivity implements MHealth
     }
 
     @Override
-    public void onRetrieveTestPeekAcuity(PeekAcuityTest peekAcuityTest) {
-        Log.d(TAG, "onRetrieveTestPeekAcuity");
+    public void onRetrieveTestVulaVision(VulaVisionTest vulaVisionTest) {
+
+    }
+
+    @Override
+    public void onRetrieveTestHearSpeech(HearspeechTest hearspeechTest) {
+
+    }
+
+    @Override
+    public void onRetrieveTestHearRisk(HearriskTest hearriskTest) {
+
     }
 
     @Override

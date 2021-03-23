@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Gradle: org.opendatakit:opendatakit-javarosa:2.11.2">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.opendatakit/opendatakit-javarosa/2.11.2/16227f0e1703d21cfbff31d83b4e3d2acca00604/opendatakit-javarosa-2.11.2.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.opendatakit/opendatakit-javarosa/2.11.2/9e07612f18944e106fc0fb88c2cbf4956532c066/opendatakit-javarosa-2.11.2-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.opendatakit/opendatakit-javarosa/2.11.2/e4cb9b1a542d71412a8a3cc3c8936d4cb5a11df1/opendatakit-javarosa-2.11.2-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

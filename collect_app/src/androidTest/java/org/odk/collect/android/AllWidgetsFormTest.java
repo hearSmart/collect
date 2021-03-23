@@ -77,7 +77,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.odk.collect.android.activities.FormEntryActivity.EXTRA_TESTING_PATH;
 
-// import android.support.annotation.Nullable;
+// import androidx.annotation.Nullable;;
 // import org.odk.collect.android.activities.BearingActivity;
 // import static android.app.Activity.RESULT_CANCELED;
 //import static android.support.test.espresso.intent.matcher.IntentMatchers.hasComponent;

@@ -1,6 +1,6 @@
 package org.odk.collect.android.injection;
 
-import android.arch.lifecycle.ViewModel;
+import androidx.lifecycle.ViewModel;
 
 import org.odk.collect.android.injection.config.architecture.ViewModelKey;
 import org.odk.collect.android.injection.config.scopes.PerViewModel;

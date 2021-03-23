@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <android.support.v7.widget.CardView
+    <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="@dimen/instance_list_icon_top_bottom_margin"
@@ -123,5 +123,5 @@
                     android:layout_marginTop="@dimen/instance_list_icon_top_bottom_margin" />
             </RelativeLayout>
         </LinearLayout>
-    </android.support.v7.widget.CardView>
+    </androidx.cardview.widget.CardView>
 </org.odk.collect.android.views.TwoItemMultipleChoiceView>

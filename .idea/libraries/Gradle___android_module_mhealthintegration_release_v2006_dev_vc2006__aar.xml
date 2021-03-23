@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: :android-module-mhealthintegration-release-v2006-dev-vc2006:@aar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/03e3db646f28f2711230bd9eae4d0fdb/jetified-android-module-mhealthintegration-release-v2006-dev-vc2006/jars/classes.jar!/" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/03e3db646f28f2711230bd9eae4d0fdb/jetified-android-module-mhealthintegration-release-v2006-dev-vc2006/res" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/03e3db646f28f2711230bd9eae4d0fdb/jetified-android-module-mhealthintegration-release-v2006-dev-vc2006/AndroidManifest.xml" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

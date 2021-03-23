@@ -1,6 +1,6 @@
 package org.odk.collect.android.architecture;
 
-import android.arch.lifecycle.ViewModel;
+import androidx.lifecycle.ViewModel;
 
 import javax.annotation.OverridingMethodsMustInvokeSuper;
 

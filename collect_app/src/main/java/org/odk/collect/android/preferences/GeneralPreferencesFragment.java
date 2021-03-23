@@ -20,7 +20,7 @@ import android.app.Fragment;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceScreen;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;;
 import android.view.View;
 
 import org.odk.collect.android.R;

@@ -14,10 +14,14 @@ limitations under the License.
 
 package org.odk.collect.android.utilities;
 
-import android.support.annotation.NonNull;
-import android.support.design.widget.Snackbar;
+import androidx.annotation.NonNull;
+
+import com.google.android.material.snackbar.BaseTransientBottomBar;
+import com.google.android.material.snackbar.Snackbar;
 import android.view.View;
 import android.widget.TextView;
+
+import org.odk.collect.android.R;
 
 public final class SnackbarUtils {
     private static final int LONG_DURATION_MS = 3500;
@@ -38,8 +42,8 @@ public final class SnackbarUtils {
             return;
         }
 
-        Snackbar snackbar = Snackbar.make(view, message.trim(), LONG_DURATION_MS);
-        TextView textView = snackbar.getView().findViewById(android.support.design.R.id.snackbar_text);
+        Snackbar snackbar = Snackbar.make(view, message.trim(), BaseTransientBottomBar.LENGTH_LONG);
+        TextView textView = snackbar.getView().findViewById(R.id.snackbar_text);
         textView.setSingleLine(false);
         snackbar.show();
     }

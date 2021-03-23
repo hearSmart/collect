@@ -1,7 +1,7 @@
 package org.odk.collect.android.injection.config.architecture;
 
 
-import android.arch.lifecycle.ViewModel;
+import androidx.lifecycle.ViewModel;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;

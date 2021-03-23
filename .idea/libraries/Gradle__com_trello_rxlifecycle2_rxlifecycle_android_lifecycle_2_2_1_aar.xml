@@ -1,0 +1,16 @@
+<component name="libraryTable">
+  <library name="Gradle: com.trello.rxlifecycle2:rxlifecycle-android-lifecycle:2.2.1@aar">
+    <CLASSES>
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-1/files-1.1/rxlifecycle-android-lifecycle-2.2.1.aar/2b92c710f479e049e3b2a661cae72bc4/res" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/bc7ed6f0e4421e93b90fd70dc4af2762/jetified-rxlifecycle-android-lifecycle-2.2.1/AndroidManifest.xml" />
+      <root url="jar://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/bc7ed6f0e4421e93b90fd70dc4af2762/jetified-rxlifecycle-android-lifecycle-2.2.1/jars/classes.jar!/" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/bc7ed6f0e4421e93b90fd70dc4af2762/jetified-rxlifecycle-android-lifecycle-2.2.1/res" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.trello.rxlifecycle2/rxlifecycle-android-lifecycle/2.2.1/a305934d5504316f0022f0636b1776b6c05b64bd/rxlifecycle-android-lifecycle-2.2.1-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.trello.rxlifecycle2/rxlifecycle-android-lifecycle/2.2.1/4d0c6cf5e3f5a20de2e7a84ee27dee471e4d306/rxlifecycle-android-lifecycle-2.2.1-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

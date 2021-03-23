@@ -16,9 +16,9 @@ package org.odk.collect.android.widgets;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.support.annotation.Nullable;
-import android.support.v7.content.res.AppCompatResources;
-import android.support.v7.widget.AppCompatRadioButton;
+import androidx.annotation.Nullable;;
+import androidx.appcompat.content.res.AppCompatResources;
+import androidx.appcompat.widget.AppCompatRadioButton;
 import android.text.method.LinkMovementMethod;
 import android.util.TypedValue;
 import android.view.Gravity;

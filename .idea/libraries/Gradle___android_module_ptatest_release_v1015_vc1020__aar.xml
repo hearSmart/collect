@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: :android-module-ptatest-release-v1015-vc1020:@aar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/5ebf75227280ca6c99a633a5a45a35f3/jetified-android-module-ptatest-release-v1015-vc1020/jars/classes.jar!/" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/5ebf75227280ca6c99a633a5a45a35f3/jetified-android-module-ptatest-release-v1015-vc1020/res" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/5ebf75227280ca6c99a633a5a45a35f3/jetified-android-module-ptatest-release-v1015-vc1020/AndroidManifest.xml" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
