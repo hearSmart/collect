@@ -90,7 +90,16 @@ the specific language governing permissions and limitations under the License.
                 android:resource="@xml/provider_paths" />
         </provider>
 
-        <activity android:name=".activities.MainMenuActivity" />
+        <activity
+            android:name=".activities.MainMenuActivity"
+            android:launchMode="singleTask"
+            android:configChanges="locale|orientation|screenSize" >
+            <intent-filter>
+                <action android:name="org.odk.collect.mhealthtest" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".activities.ScannerWithFlashlightActivity"
             android:screenOrientation="portrait"

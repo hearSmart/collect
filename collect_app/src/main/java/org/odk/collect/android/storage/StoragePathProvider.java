@@ -4,6 +4,8 @@ import org.odk.collect.android.application.Collect;
 
 import java.io.File;
 
+import timber.log.Timber;
+
 public class StoragePathProvider {
     public String[] getOdkDirPaths() {
         return new String[]{
@@ -17,6 +19,7 @@ public class StoragePathProvider {
 
     public String getOdkRootDirPath() {
         File odkDirPath = Collect.getInstance().getExternalFilesDir(null);
+        Timber.d("odkDirPath " + odkDirPath);
         return odkDirPath != null
                 ? odkDirPath.getAbsolutePath()
                 : "";

@@ -19,6 +19,7 @@ import android.database.ContentObserver;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -29,6 +30,16 @@ import android.widget.TextView;
 import androidx.appcompat.widget.Toolbar;
 import androidx.lifecycle.ViewModelProviders;
 
+import com.hearxgroup.mhealthintegration.Contracts.MHealthTestRetrieverContract;
+import com.hearxgroup.mhealthintegration.Models.Facility;
+import com.hearxgroup.mhealthintegration.Models.HearriskTest;
+import com.hearxgroup.mhealthintegration.Models.HearscreenTest;
+import com.hearxgroup.mhealthintegration.Models.HearspeechTest;
+import com.hearxgroup.mhealthintegration.Models.HeartestTest;
+import com.hearxgroup.mhealthintegration.Models.Patient;
+import com.hearxgroup.mhealthintegration.Models.VulaVisionTest;
+import com.hearxgroup.mhealthintegration.TestRequestHelper;
+
 import org.odk.collect.android.R;
 import org.odk.collect.android.activities.viewmodels.MainMenuViewModel;
 import org.odk.collect.android.application.Collect;
@@ -37,6 +48,7 @@ import org.odk.collect.android.gdrive.GoogleDriveActivity;
 import org.odk.collect.android.injection.DaggerUtils;
 import org.odk.collect.android.instances.Instance;
 import org.odk.collect.android.instances.InstancesRepository;
+import org.odk.collect.android.mhealthintegration.MHealthUtil;
 import org.odk.collect.android.preferences.dialogs.AdminPasswordDialogFragment;
 import org.odk.collect.android.preferences.dialogs.AdminPasswordDialogFragment.Action;
 import org.odk.collect.android.preferences.keys.AdminKeys;
@@ -52,11 +64,14 @@ import org.odk.collect.android.utilities.PlayServicesChecker;
 import org.odk.collect.android.utilities.ToastUtils;
 
 import java.lang.ref.WeakReference;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import io.reactivex.Single;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 
 import static org.odk.collect.android.utilities.DialogUtils.showIfNotShowing;
 
@@ -67,7 +82,7 @@ import static org.odk.collect.android.utilities.DialogUtils.showIfNotShowing;
  * @author Carl Hartung (carlhartung@gmail.com)
  * @author Yaw Anokwa (yanokwa@gmail.com)
  */
-public class MainMenuActivity extends CollectAbstractActivity implements AdminPasswordDialogFragment.AdminPasswordDialogCallback {
+public class MainMenuActivity extends CollectAbstractActivity implements AdminPasswordDialogFragment.AdminPasswordDialogCallback, MHealthTestRetrieverContract.ContentRetrieverInterface {
     // buttons
     private Button manageFilesButton;
     private Button sendDataButton;
@@ -77,6 +92,9 @@ public class MainMenuActivity extends CollectAbstractActivity implements AdminPa
     private MenuItem qrcodeScannerMenuItem;
     private final IncomingHandler handler = new IncomingHandler(this);
     private final MyContentObserver contentObserver = new MyContentObserver();
+    private static String TAG = MainMenuActivity.class.getSimpleName();
+    private String mHealthGeneratedTestId;
+
 
     @BindView(R.id.version_sha)
     TextView versionSHAView;
@@ -197,6 +215,31 @@ public class MainMenuActivity extends CollectAbstractActivity implements AdminPa
     }
 
     @Override
+    protected void onNewIntent(Intent intent){
+        super.onNewIntent(intent);
+        Collect.bundleHearTest = null;
+
+        if(TestRequestHelper.INSTANCE.getGeneratedTestIdFromIntent(intent) != null){
+            mHealthGeneratedTestId = TestRequestHelper.INSTANCE.getGeneratedTestIdFromIntent(intent);
+            Intent testIntent = intent;
+            Single.timer(500, TimeUnit.MILLISECONDS)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(timeup -> {
+                        TestRequestHelper.INSTANCE.retrieveTestResult(
+                                MainMenuActivity.this,
+                                getLoaderManager(),
+                                MainMenuActivity.this,
+                                TestRequestHelper.INSTANCE.getTestTypeFromIntent(testIntent),
+                                mHealthGeneratedTestId);
+                    });
+        }
+        else{
+            Log.d(TAG, "TestRequestHelper.getGeneratedTestIdFromIntent(intent)==null");
+        }
+        setIntent(null);
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
 
@@ -261,7 +304,7 @@ public class MainMenuActivity extends CollectAbstractActivity implements AdminPa
 
     private void initToolbar() {
         Toolbar toolbar = findViewById(R.id.toolbar);
-        setTitle(String.format("%s %s", getString(R.string.app_name), viewModel.getVersion()));
+        setTitle(String.format("%s %s", getString(R.string.app_name), viewModel.getVersionName()));
         setSupportActionBar(toolbar);
     }
 
@@ -304,6 +347,52 @@ public class MainMenuActivity extends CollectAbstractActivity implements AdminPa
     @Override
     public void onIncorrectAdminPassword() {
         ToastUtils.showShortToast(R.string.admin_password_incorrect);
+    }
+
+    @Override
+    public void onRetrieveTestHearScreen(HearscreenTest hearscreenTest) {
+        Log.d(TAG, "onRetrieveTestHearScreen");
+    }
+
+    @Override
+    public void onRetrieveTestHearTest(HeartestTest heartestTest) {
+        Log.d(TAG, "onRetrieveTestHearTest");
+        Collect.bundleHearTest = MHealthUtil.getODKReturnBundle(heartestTest);
+      /*  Collect.getInstance().getActivityLogger()
+                .logAction(this, "fillBlankForm", "click");*/
+        Intent i = new Intent(getApplicationContext(),
+                FillBlankFormActivity.class);
+        startActivity(i);
+    }
+
+    @Override
+    public void onRetrieveTestVulaVision(VulaVisionTest vulaVisionTest) {
+
+    }
+
+    @Override
+    public void onRetrieveTestHearSpeech(HearspeechTest hearspeechTest) {
+
+    }
+
+    @Override
+    public void onRetrieveTestHearRisk(HearriskTest hearriskTest) {
+
+    }
+
+    @Override
+    public void onRetrievePatient(Patient patient) {
+
+    }
+
+    @Override
+    public void onRetrieveFacility(Facility facility) {
+
+    }
+
+    @Override
+    public void onRetrieveContentError(String s) {
+
     }
 
     /*

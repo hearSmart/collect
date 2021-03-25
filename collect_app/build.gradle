@@ -78,8 +78,8 @@ android {
         applicationId('org.odk.collect.android')
         minSdkVersion rootProject.androidMinSdk
         targetSdkVersion rootProject.androidTargetSdk
-        versionCode LEGACY_BUILD_NUMBER_OFFSET + getMasterCommitCount()
-        versionName getVersionName()
+        versionCode 20007
+        versionName "20007-MHEALTH"
         testInstrumentationRunner('androidx.test.runner.AndroidJUnitRunner')
         multiDexEnabled true
         vectorDrawables.useSupportLibrary = true
@@ -332,6 +332,11 @@ dependencies {
     implementation('org.mp4parser:muxer:1.9.41') {
         exclude group: 'org.hamcrest'
     }
+
+    //MHEALTH
+    implementation(name: 'android-module-mhealthintegration-release-v2006-dev-vc2006', ext: 'aar')
+    implementation(name: 'android-module-ptatest-release-v1015-vc1020', ext: 'aar')
+    implementation 'com.github.hearSmart:android-module-mhealth-resources:v1.8'
 
     implementation project(':shared')
     implementation project(':nbistubs')

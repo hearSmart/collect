@@ -49,6 +49,7 @@ public class FormsDirDiskFormsSynchronizer implements DiskFormsSynchronizer {
 
             StoragePathProvider storagePathProvider = new StoragePathProvider();
             File formDir = new File(storagePathProvider.getOdkDirPath(StorageSubdirectory.FORMS));
+            Timber.d("formsDir -> %s", formDir.getAbsolutePath());
             if (formDir.exists() && formDir.isDirectory()) {
                 // Get all the files in the /odk/foms directory
                 File[] formDefs = formDir.listFiles();

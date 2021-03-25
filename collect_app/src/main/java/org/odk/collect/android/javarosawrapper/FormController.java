@@ -42,8 +42,10 @@ import org.javarosa.model.xform.XPathReference;
 import org.javarosa.xform.parse.XFormParser;
 import org.javarosa.xpath.XPathParseTool;
 import org.javarosa.xpath.expr.XPathExpression;
+import org.odk.collect.android.application.Collect;
 import org.odk.collect.android.exception.JavaRosaException;
 import org.odk.collect.android.external.ExternalDataUtil;
+import org.odk.collect.android.formentry.ODKView;
 import org.odk.collect.android.formentry.audit.AsyncTaskAuditEventWriter;
 import org.odk.collect.android.formentry.audit.AuditConfig;
 import org.odk.collect.android.formentry.audit.AuditEventLogger;
@@ -51,6 +53,7 @@ import org.odk.collect.android.forms.FormDesignException;
 import org.odk.collect.android.utilities.Appearances;
 import org.odk.collect.android.utilities.FileUtils;
 import org.odk.collect.android.utilities.FormNameUtils;
+import org.odk.collect.android.widgets.QuestionWidget;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -90,7 +93,7 @@ public class FormController {
      */
     private static final String AUDIT = "audit";
     public static final String AUDIT_FILE_NAME = "audit.csv";
-
+    boolean isParticipantIdQ = false;
     /*
      * Store the auditEventLogger object with the form controller state
      */
@@ -514,6 +517,7 @@ public class FormController {
     public boolean saveAnswer(FormIndex index, IAnswerData data) throws JavaRosaException {
         try {
             return formEntryController.saveAnswer(index, data, true);
+
         } catch (Exception e) {
             String dataType = data != null ? data.getClass().toString() : null;
             String ref = index != null ? index.getReference().toString() : null;
@@ -752,9 +756,58 @@ public class FormController {
     /**
      * @return FailedConstraint of first failed constraint or null if all questions were saved.
      */
-    public FailedConstraint saveAllScreenAnswers(HashMap<FormIndex, IAnswerData> answers, boolean evaluateConstraints) throws JavaRosaException {
+    public FailedConstraint saveAllScreenAnswersMhealth(ODKView odkView, boolean evaluateConstraints) throws JavaRosaException {
         if (currentPromptIsQuestion()) {
+            ArrayList<QuestionWidget> questions = odkView.getQuestionWidgets();
+            HashMap<FormIndex, IAnswerData> answers = odkView.getAnswers();
+
+            boolean isParticipantIdQ = false;
+
+            for(QuestionWidget questionWidget: questions) {
+                if(questionWidget.getFormEntryPrompt().getQuestionText()!=null) {
+                    if(questionWidget.getFormEntryPrompt().getQuestionText().toLowerCase().trim().equalsIgnoreCase("participant id"))
+                        isParticipantIdQ = true;
+                }
+            }
             for (FormIndex index : answers.keySet()) {
+                // Within a group, you can only save for question events
+                if (getEvent(index) == FormEntryController.EVENT_QUESTION) {
+                    int saveStatus;
+                    IAnswerData answer = answers.get(index);
+
+                    if(answer!=null && answer.getDisplayText()!=null) {
+                        if(isParticipantIdQ) {
+                            Collect.participantID = answer.getDisplayText();
+                            //Log.d("saveAllScreenAnswers", "participantID = " + answer.getDisplayText());
+                        }
+
+                    }
+                    if (evaluateConstraints) {
+                        saveStatus = answerQuestion(index, answer);
+                        if (saveStatus != FormEntryController.ANSWER_OK) {
+                            return new FailedConstraint(index, saveStatus);
+                        }
+                    } else {
+                        saveAnswer(index, answer);
+                    }
+                } else {
+                    Timber.w("Attempted to save an index referencing something other than a question: %s",
+                            index.getReference().toString());
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @return FailedConstraint of first failed constraint or null if all questions were saved.
+     */
+    public FailedConstraint saveAllScreenAnswers(HashMap<FormIndex, IAnswerData> answers, boolean evaluateConstraints) throws JavaRosaException {
+
+        if (currentPromptIsQuestion()) {
+
+            for (FormIndex index : answers.keySet()) {
+
                 FailedConstraint failedConstraint = saveOneScreenAnswer(
                         index,
                         answers.get(index),
@@ -762,6 +815,7 @@ public class FormController {
                 );
 
                 if (failedConstraint != null) {
+
                     return failedConstraint;
                 }
             }

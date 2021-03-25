@@ -73,6 +73,9 @@ public class AudioHelper {
         return isPlaying;
     }
 
+    public void release(){
+        viewModel.background();
+    }
     public void play(Clip clip) {
         viewModel.play(clip);
     }

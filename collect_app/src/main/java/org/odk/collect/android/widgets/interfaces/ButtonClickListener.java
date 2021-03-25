@@ -16,6 +16,6 @@
 
 package org.odk.collect.android.widgets.interfaces;
 
-public interface ButtonClickListener {
+public interface ButtonClickListener extends Widget {
     void onButtonClick(int buttonId);
 }

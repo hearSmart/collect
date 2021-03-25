@@ -33,6 +33,9 @@ allprojects {
             url 'https://staging.dev.medicmobile.org/_couch/maven-repo'
             metadataSources { artifact() }
         }
+        flatDir {
+            dirs 'libs'
+        }
     }
 }
 

@@ -14,7 +14,9 @@
 
 package org.odk.collect.android.activities;
 
+import android.app.AlertDialog;
 import android.content.ContentUris;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
@@ -30,8 +32,11 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.loader.app.LoaderManager;
 import androidx.loader.content.Loader;
 
+import com.mapbox.android.core.permissions.PermissionsListener;
+
 import org.odk.collect.android.R;
 import org.odk.collect.android.adapters.FormListAdapter;
+import org.odk.collect.android.application.Collect;
 import org.odk.collect.android.dao.FormsDao;
 import org.odk.collect.android.formmanagement.BlankFormListMenuDelegate;
 import org.odk.collect.android.formmanagement.BlankFormsListViewModel;
@@ -39,9 +44,11 @@ import org.odk.collect.android.injection.DaggerUtils;
 import org.odk.collect.android.listeners.DiskSyncListener;
 import org.odk.collect.android.listeners.PermissionListener;
 import org.odk.collect.android.network.NetworkStateProvider;
+import org.odk.collect.android.permissions.PermissionsProvider;
 import org.odk.collect.android.preferences.keys.GeneralKeys;
 import org.odk.collect.android.preferences.dialogs.ServerAuthDialogFragment;
 import org.odk.collect.android.provider.FormsProviderAPI.FormsColumns;
+import org.odk.collect.android.storage.StorageInitializer;
 import org.odk.collect.android.tasks.FormSyncTask;
 import org.odk.collect.android.utilities.ApplicationConstants;
 import org.odk.collect.android.utilities.DialogUtils;
@@ -63,7 +70,7 @@ public class FillBlankFormActivity extends FormListActivity implements
         DiskSyncListener, AdapterView.OnItemClickListener, LoaderManager.LoaderCallbacks<Cursor> {
 
     private static final String FORM_CHOOSER_LIST_SORTING_ORDER = "formChooserListSortingOrder";
-
+    private static final boolean EXIT = true;
     private FormSyncTask formSyncTask;
 
     @Inject
@@ -103,6 +110,33 @@ public class FillBlankFormActivity extends FormListActivity implements
 
         menuDelegate = new BlankFormListMenuDelegate(this, blankFormsListViewModel, networkStateProvider);
         init();
+    }
+
+    private void createErrorDialog(String errorMsg, final boolean shouldExit) {
+
+       /* Collect.getInstance().getActivityLogger().logAction(this, "createErrorDialog", "show");*/
+
+        AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+        alertDialog.setIcon(android.R.drawable.ic_dialog_info);
+        alertDialog.setMessage(errorMsg);
+        DialogInterface.OnClickListener errorListener = new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int i) {
+                switch (i) {
+                    case DialogInterface.BUTTON_POSITIVE:
+                       /* Collect.getInstance().getActivityLogger().logAction(this,
+                                "createErrorDialog",
+                                shouldExit ? "exitApplication" : "OK");*/
+                        if (shouldExit) {
+                            finish();
+                        }
+                        break;
+                }
+            }
+        };
+        alertDialog.setCancelable(false);
+        alertDialog.setButton(getString(R.string.ok), errorListener);
+        alertDialog.show();
     }
 
     @Override

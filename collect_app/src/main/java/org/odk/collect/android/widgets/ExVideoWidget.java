@@ -82,6 +82,7 @@ public class ExVideoWidget extends QuestionWidget implements FileWidget, WidgetD
         widgetValueChanged();
     }
 
+
     @Override
     public IAnswerData getAnswer() {
         return answerFile != null ? new StringData(answerFile.getName()) : null;

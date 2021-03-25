@@ -18,6 +18,8 @@ package org.odk.collect.android.adapters;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,8 +27,10 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import org.odk.collect.android.R;
+import org.odk.collect.android.application.Collect;
 import org.odk.collect.android.logic.HierarchyElement;
 import org.odk.collect.android.utilities.StringUtils;
+import org.odk.collect.android.widgets.utilities.TextUtils;
 
 import java.util.List;
 
@@ -35,6 +39,7 @@ public class HierarchyListAdapter extends RecyclerView.Adapter<HierarchyListAdap
     private final OnElementClickListener listener;
 
     private final List<HierarchyElement> hierarchyElements;
+    private static final String TAG = HierarchyListAdapter.class.getSimpleName();
 
     public HierarchyListAdapter(List<HierarchyElement> listElements, OnElementClickListener listener) {
         this.hierarchyElements = listElements;
@@ -49,6 +54,35 @@ public class HierarchyListAdapter extends RecyclerView.Adapter<HierarchyListAdap
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         holder.bind(hierarchyElements.get(position), listener);
+        if(hierarchyElements!=null && hierarchyElements.get(position)!=null &&
+                hierarchyElements.get(position).getPrimaryText()!=null &&
+                hierarchyElements.get(position).getPrimaryText().contains("Participant ID")) {
+
+            Collect.participantID = hierarchyElements.get(position).getSecondaryText();
+            Log.d(TAG, "Updated Collect.participantID = "+Collect.participantID);
+        }
+
+        if (hierarchyElements.get(position).getIcon() != null) {
+            holder.icon.setVisibility(View.VISIBLE);
+            holder.icon.setImageDrawable(hierarchyElements.get(position).getIcon());
+        } else {
+            holder.icon.setVisibility(View.GONE);
+        }
+        holder.primaryText.setText(TextUtils.textToHtml(hierarchyElements.get(position).getPrimaryText()));
+        if (hierarchyElements.get(position).getSecondaryText() != null && !hierarchyElements.get(position).getSecondaryText().isEmpty()) {
+            holder.secondaryText.setVisibility(View.VISIBLE);
+            holder.secondaryText.setText(TextUtils.textToHtml(hierarchyElements.get(position).getSecondaryText()));
+        } else {
+            holder.secondaryText.setVisibility(View.GONE);
+        }
+        /*if(hierarchyElements!=null && hierarchyElements.get(position)!=null &&
+                hierarchyElements.get(position).getPrimaryText()!=null &&
+                hierarchyElements.get(position).getPrimaryText().contains("Participant ID")) {
+
+            Collect.participantID = hierarchyElements.get(position).getSecondaryText();
+            Log.d(TAG, "Updated Collect.participantID = "+Collect.participantID);
+        }
+
         if (hierarchyElements.get(position).getIcon() != null) {
             holder.icon.setVisibility(View.VISIBLE);
             holder.icon.setImageDrawable(hierarchyElements.get(position).getIcon());
@@ -56,12 +90,13 @@ public class HierarchyListAdapter extends RecyclerView.Adapter<HierarchyListAdap
             holder.icon.setVisibility(View.GONE);
         }
         holder.primaryText.setText(StringUtils.textToHtml(hierarchyElements.get(position).getPrimaryText()));
+
         if (hierarchyElements.get(position).getSecondaryText() != null && !hierarchyElements.get(position).getSecondaryText().isEmpty()) {
             holder.secondaryText.setVisibility(View.VISIBLE);
             holder.secondaryText.setText(StringUtils.textToHtml(hierarchyElements.get(position).getSecondaryText()));
         } else {
             holder.secondaryText.setVisibility(View.GONE);
-        }
+        }*/
     }
 
     @Override

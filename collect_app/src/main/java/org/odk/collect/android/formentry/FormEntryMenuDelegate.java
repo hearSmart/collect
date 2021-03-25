@@ -12,6 +12,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.jetbrains.annotations.NotNull;
 import org.odk.collect.android.R;
+import org.odk.collect.android.activities.FormEntryActivity;
 import org.odk.collect.android.activities.FormHierarchyActivity;
 import org.odk.collect.android.formentry.backgroundlocation.BackgroundLocationViewModel;
 import org.odk.collect.android.formentry.questions.AnswersProvider;
@@ -103,14 +104,20 @@ public class FormEntryMenuDelegate implements MenuDelegate, RequiresFormControll
             backgroundLocation.setChecked(settingsProvider.getGeneralSettings().getBoolean(KEY_BACKGROUND_LOCATION));
         }
 
-        menu.findItem(R.id.menu_add_repeat).setVisible(formEntryViewModel.canAddRepeat());
-        menu.findItem(R.id.menu_record_audio).setVisible(formEntryViewModel.hasBackgroundRecording().getValue());
-        menu.findItem(R.id.menu_record_audio).setChecked(backgroundAudioViewModel.isBackgroundRecordingEnabled().getValue());
+        if(menu.findItem(R.id.menu_add_repeat) != null){
+            menu.findItem(R.id.menu_add_repeat).setVisible(formEntryViewModel.canAddRepeat());
+        }
+       if(menu.findItem(R.id.menu_record_audio) != null){
+           menu.findItem(R.id.menu_record_audio).setVisible(formEntryViewModel.hasBackgroundRecording().getValue());
+           menu.findItem(R.id.menu_record_audio).setChecked(backgroundAudioViewModel.isBackgroundRecordingEnabled().getValue());
+       }
+
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.menu_add_repeat) {
+
             if (audioRecorder.isRecording() && !backgroundAudioViewModel.isBackgroundRecording()) {
                 DialogUtils.showIfNotShowing(RecordingWarningDialogFragment.class, activity.getSupportFragmentManager());
             } else {

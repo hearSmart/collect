@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel;
 import androidx.lifecycle.ViewModelProvider;
 
 import org.jetbrains.annotations.NotNull;
+import org.odk.collect.android.BuildConfig;
 import org.odk.collect.android.configure.SettingsUtils;
 import org.odk.collect.android.preferences.FormUpdateMode;
 import org.odk.collect.android.preferences.keys.AdminKeys;
@@ -37,6 +38,10 @@ public class MainMenuViewModel extends ViewModel {
         } else {
             return version.getSemanticVersion();
         }
+    }
+
+    public String getVersionName(){
+        return BuildConfig.VERSION_NAME;
     }
 
     @Nullable

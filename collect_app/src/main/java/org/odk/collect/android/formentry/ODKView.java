@@ -26,6 +26,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.View;
@@ -66,6 +67,8 @@ import org.odk.collect.android.formentry.questions.QuestionTextSizeHelper;
 import org.odk.collect.android.javarosawrapper.FormController;
 import org.odk.collect.android.listeners.PermissionListener;
 import org.odk.collect.android.listeners.WidgetValueChangedListener;
+import org.odk.collect.android.logic.HierarchyElement;
+import org.odk.collect.android.mhealthintegration.MHealthUtil;
 import org.odk.collect.android.permissions.PermissionsProvider;
 import org.odk.collect.android.preferences.source.SettingsProvider;
 import org.odk.collect.android.utilities.ActivityAvailability;
@@ -139,6 +142,7 @@ public class ODKView extends FrameLayout implements OnLongClickListener, WidgetV
     private final LifecycleOwner viewLifecycle;
     private final AudioRecorder audioRecorder;
     private final FormEntryViewModel formEntryViewModel;
+    boolean readOnlyOverride = false;
 
     /**
      * Builds the view for a specified question or field-list of questions.
@@ -397,6 +401,10 @@ public class ODKView extends FrameLayout implements OnLongClickListener, WidgetV
         return TextUtils.join(" > ", segments);
     }
 
+    public ArrayList<QuestionWidget> getQuestionWidgets() {
+        return widgets;
+    }
+
     /**
      * Adds a button to launch an intent if the group displayed by this view is an intent group.
      * An intent group launches an intent and receives multiple values from the launched app.
@@ -415,54 +423,73 @@ public class ODKView extends FrameLayout implements OnLongClickListener, WidgetV
         launchIntentButton.setText(buttonText);
         launchIntentButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, QuestionFontSizeUtils.getQuestionFontSize() + 2);
         launchIntentButton.setVisibility(VISIBLE);
+
         launchIntentButton.setOnClickListener(view -> {
             String intentName = ExternalAppsUtils.extractIntentName(intentString);
             Map<String, String> parameters = ExternalAppsUtils.extractParameters(intentString);
 
             Intent i = new Intent(intentName);
-            if (i.resolveActivity(Collect.getInstance().getPackageManager()) == null) {
-                Intent launchIntent = Collect.getInstance().getPackageManager().getLaunchIntentForPackage(intentName);
+
+            Log.d("ODKView", "intentName:"+intentName);
+            Log.d("ODKView", "Collect.participantID:"+Collect.participantID);
+            /*if (i.resolveActivity(Collect.getInstance().getPackageManager()) == null && intentName.equalsIgnoreCase("starthearingtest")) {
+
+                MHealthUtil.requestMHTest(context, MHealthUtil.buildPatient(Collect.participantID));
+               *//* Intent launchIntent = Collect.getInstance().getPackageManager().getLaunchIntentForPackage(intentName);
 
                 if (launchIntent != null) {
                     // Make sure FLAG_ACTIVITY_NEW_TASK is not set because it doesn't work with startActivityForResult
                     launchIntent.setFlags(0);
                     i = launchIntent;
+                }*//*
+            }*/
+
+
+
+            if(intentName.equalsIgnoreCase("starthearingtest") && Collect.participantID != null && Collect.participantID.length() > 0){
+                Timber.d("clickedLaunch");
+                if(Collect.participantID.length()>0) {
+                    MHealthUtil.requestMHTest(
+                            context,
+                            MHealthUtil.buildPatient(Collect.participantID));
                 }
             }
+            else{
 
-            try {
-                ExternalAppsUtils.populateParameters(i, parameters,
-                        c.getIndex().getReference());
+                try {
+                    ExternalAppsUtils.populateParameters(i, parameters,
+                            c.getIndex().getReference());
 
-                for (FormEntryPrompt p : questionPrompts) {
-                    IFormElement formElement = p.getFormElement();
-                    if (formElement instanceof QuestionDef) {
-                        TreeReference reference =
-                                (TreeReference) formElement.getBind().getReference();
-                        IAnswerData answerValue = p.getAnswerValue();
-                        Object value =
-                                answerValue == null ? null : answerValue.getValue();
-                        switch (p.getDataType()) {
-                            case Constants.DATATYPE_TEXT:
-                            case Constants.DATATYPE_INTEGER:
-                            case Constants.DATATYPE_DECIMAL:
-                            case Constants.DATATYPE_BINARY:
-                                i.putExtra(reference.getNameLast(),
-                                        (Serializable) value);
-                                break;
+                    for (FormEntryPrompt p : questionPrompts) {
+                        IFormElement formElement = p.getFormElement();
+                        if (formElement instanceof QuestionDef) {
+                            TreeReference reference =
+                                    (TreeReference) formElement.getBind().getReference();
+                            IAnswerData answerValue = p.getAnswerValue();
+                            Object value =
+                                    answerValue == null ? null : answerValue.getValue();
+                            switch (p.getDataType()) {
+                                case Constants.DATATYPE_TEXT:
+                                case Constants.DATATYPE_INTEGER:
+                                case Constants.DATATYPE_DECIMAL:
+                                case Constants.DATATYPE_BINARY:
+                                    i.putExtra(reference.getNameLast(),
+                                            (Serializable) value);
+                                    break;
+                            }
                         }
                     }
+
+                    ((Activity) getContext()).startActivityForResult(i, RequestCodes.EX_GROUP_CAPTURE);
+                } catch (ExternalParamsException e) {
+                    Timber.e(e, "ExternalParamsException");
+
+                    ToastUtils.showShortToast(e.getMessage());
+                } catch (ActivityNotFoundException e) {
+                    Timber.d(e, "ActivityNotFoundExcept");
+
+                    ToastUtils.showShortToast(errorString);
                 }
-
-                ((Activity) getContext()).startActivityForResult(i, RequestCodes.EX_GROUP_CAPTURE);
-            } catch (ExternalParamsException e) {
-                Timber.e(e, "ExternalParamsException");
-
-                ToastUtils.showShortToast(e.getMessage());
-            } catch (ActivityNotFoundException e) {
-                Timber.d(e, "ActivityNotFoundExcept");
-
-                ToastUtils.showShortToast(errorString);
             }
         });
     }

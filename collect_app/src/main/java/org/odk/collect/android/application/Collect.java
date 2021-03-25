@@ -17,6 +17,8 @@ package org.odk.collect.android.application;
 import android.app.Application;
 import android.content.Context;
 import android.content.res.Configuration;
+import android.os.Bundle;
+import android.os.Environment;
 import android.os.StrictMode;
 
 import androidx.annotation.Nullable;
@@ -48,7 +50,13 @@ import static org.odk.collect.android.preferences.keys.MetaKeys.KEY_GOOGLE_BUG_1
 public class Collect extends Application implements LocalizedApplication {
     public static String defaultSysLanguage;
     private static Collect singleton;
+    public static String participantID="";
+    public static Bundle bundleHearTest;
 
+    public static final String ODK_ROOT = Environment.getExternalStorageDirectory()
+            + File.separator + "odk";
+
+    public static final String FORMS_PATH = ODK_ROOT + File.separator + "forms";
     @Nullable
     private FormController formController;
     private ExternalDataManager externalDataManager;

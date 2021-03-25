@@ -19,10 +19,12 @@ import org.javarosa.core.model.data.IAnswerData;
 import org.javarosa.form.api.FormEntryController;
 import org.jetbrains.annotations.NotNull;
 import org.odk.collect.analytics.Analytics;
+import org.odk.collect.android.activities.FormEntryActivity;
 import org.odk.collect.android.application.Collect;
 import org.odk.collect.android.dao.helpers.InstancesDaoHelper;
 import org.odk.collect.android.exception.JavaRosaException;
 import org.odk.collect.android.external.ExternalDataManager;
+import org.odk.collect.android.formentry.ODKView;
 import org.odk.collect.android.formentry.RequiresFormController;
 import org.odk.collect.android.formentry.audit.AuditEvent;
 import org.odk.collect.android.formentry.audit.AuditUtils;
@@ -120,6 +122,7 @@ public class FormSaveViewModel extends ViewModel implements ProgressDialogFragme
         }
 
         try {
+
             formController.saveAllScreenAnswers(answers, false);
         } catch (JavaRosaException ignored) {
             // ignored

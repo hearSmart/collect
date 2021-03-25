@@ -10,4 +10,5 @@ public interface Widget {
     IAnswerData getAnswer();
 
     void clearAnswer();
+
 }

@@ -26,6 +26,7 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.KeyEvent;
@@ -214,7 +215,7 @@ public class FormEntryActivity extends CollectAbstractActivity implements Animat
 
     private static final boolean EVALUATE_CONSTRAINTS = true;
     public static final boolean DO_NOT_EVALUATE_CONSTRAINTS = false;
-
+    public static final String TAG = FormEntryActivity.class.getSimpleName();
     public static final String ANSWER_KEY = "value"; // this value can not be changed because it is also used by external apps
 
     public static final String KEY_INSTANCES = "instances";
@@ -894,7 +895,12 @@ public class FormEntryActivity extends CollectAbstractActivity implements Animat
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        menuDelegate.onCreateOptionsMenu(getMenuInflater(), menu);
+        if(Collect.bundleHearTest != null) {
+            getMenuInflater().inflate(R.menu.form_menu_mhealth, menu);
+        } else{
+                menuDelegate.onCreateOptionsMenu(getMenuInflater(), menu);
+            }
+
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -925,6 +931,20 @@ public class FormEntryActivity extends CollectAbstractActivity implements Animat
                 // don't exit
                 saveForm(false, InstancesDaoHelper.isInstanceComplete(false, settingsProvider.getGeneralSettings().getBoolean(KEY_COMPLETED_DEFAULT)), null, true);
                 return true;
+
+            case R.id.menu_load_results:
+                if(Collect.bundleHearTest!=null) {
+                    Log.d(TAG, "Collect.bundleHearTest!=null");
+                    try {
+                        getCurrentViewIfODKView().setDataForFields(Collect.bundleHearTest);
+                    } catch (JavaRosaException e) {
+                        e.printStackTrace();
+                    }
+                    onScreenRefresh();
+                }
+                else
+                    Log.d(TAG, "Collect.bundleHearTest!=null");
+                return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -946,7 +966,7 @@ public class FormEntryActivity extends CollectAbstractActivity implements Animat
                 && getCurrentViewIfODKView() != null) {
             HashMap<FormIndex, IAnswerData> answers = getAnswers();
             try {
-                FailedConstraint constraint = formController.saveAllScreenAnswers(answers,
+                FailedConstraint constraint = formController.saveAllScreenAnswersMhealth(getCurrentViewIfODKView(),
                         evaluateConstraints);
                 if (constraint != null) {
                     createConstraintToast(constraint.index, constraint.status);
@@ -979,6 +999,7 @@ public class FormEntryActivity extends CollectAbstractActivity implements Animat
             if (!isQuestionRecalculated(mutableQuestionsBeforeSave[index], immutableQuestionsBeforeSave.get(index))) {
                 try {
                     formController.saveOneScreenAnswer(answer.getKey(), answer.getValue(), false);
+
                 } catch (JavaRosaException e) {
                     Timber.e(e);
                 }
